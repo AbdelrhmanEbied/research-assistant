@@ -15,7 +15,7 @@ class ChatService:
         self.conversation_repo = ConversationRepository(db)
         self.message_repo = MessageRepository(db)
 
-    async def generate_title(query: str, max_length: int = 50) -> str:
+    async def generate_title(self, query: str, max_length: int = 50) -> str:
         title = re.sub(r"\s+", " ", query.strip())
         title = title.rstrip(".,!?;:")
 
@@ -40,7 +40,7 @@ class ChatService:
         if not conversation.title:
             self.conversation_repo.update_title(
                 conversation.id,
-                self.generate_title(request.query)
+                await self.generate_title(request.query)
             )
 
 
@@ -68,6 +68,9 @@ class ChatService:
             version="v2",
         ):
             if event["event"] != "on_chat_model_stream":
+                continue
+
+            if event.get("metadata", {}).get("langgraph_node") != "generate_answer":
                 continue
 
             chunk = event["data"]["chunk"]

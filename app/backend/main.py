@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI, status
+from fastapi.staticfiles import StaticFiles
 
 from app.backend.lifespan import lifespan
 from app.backend.routers.chat_router import router as chat_router
@@ -16,5 +19,8 @@ app.include_router(document_router)
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
     return {"status": "ok"}
+
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 

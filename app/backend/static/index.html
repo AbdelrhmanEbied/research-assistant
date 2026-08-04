@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Assistant</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+<style>
+  :root {
+    /* near-black + translucency. no colour accents anywhere, on purpose */
+    --bg: #0a0a0b;
+    --bg-raised: #141416;
+    --panel: rgba(255,255,255,0.028);
+    --panel-strong: rgba(255,255,255,0.055);
+    --border: rgba(255,255,255,0.075);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #ededed;
+    --text-dim: #9a9a9d;
+    --text-faint: #66666b;
+    --danger: #e5645f;
+    --code-bg: rgba(255,255,255,0.055);
+    --assistant-bg: rgba(255,255,255,0.018);
+    --serif: "Playfair Display", "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: var(--sans); }
+  body {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    position: relative;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.11); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+  ::selection { background: rgba(255,255,255,0.16); }
+
+  /* blurred to hell so they read as a gradient wash, not as circles */
+  .mesh-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+    filter: blur(100px);
+    opacity: 0.32;
+    pointer-events: none;
+  }
+  .mesh-blob {
+    position: absolute;
+    width: 55vmax;
+    height: 55vmax;
+    border-radius: 50%;
+    mix-blend-mode: screen;
+    will-change: transform;
+  }
+  .blob-1 { background: #3a3f52; top: -18%; left: -14%; animation: float1 26s ease-in-out infinite alternate; }
+  .blob-2 { background: #2f3339; bottom: -22%; right: -12%; animation: float2 31s ease-in-out infinite alternate; }
+  .blob-3 { background: #4a3f38; top: 28%; left: 34%; animation: float3 36s ease-in-out infinite alternate; }
+  @keyframes float1 { from { transform: translate(0,0) scale(1); } to { transform: translate(11vw,9vh) scale(1.14); } }
+  @keyframes float2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-9vw,-7vh) scale(1.1); } }
+  @keyframes float3 { from { transform: translate(0,0) scale(1); } to { transform: translate(-7vw,11vh) scale(0.92); } }
+
+  .vignette {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(0,0,0,0.55) 100%);
+  }
+
+  .particles { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.85);
+    opacity: 0.3;
+    animation: drift var(--dur, 16s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+    will-change: transform, opacity;
+  }
+  @keyframes drift {
+    0%   { transform: translate(0,0); opacity: 0.06; }
+    50%  { transform: translate(var(--dx,20px), var(--dy,-40px)); opacity: 0.34; }
+    100% { transform: translate(0,0); opacity: 0.06; }
+  }
+
+  /* nothing should be looping while the tab is in the background */
+  body.anim-paused .mesh-blob,
+  body.anim-paused .particle,
+  body.anim-paused .letter,
+  body.anim-paused .caret,
+  body.anim-paused .typing-dots span {
+    animation-play-state: paused !important;
+  }
+
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--panel);
+    backdrop-filter: blur(24px) saturate(120%);
+    -webkit-backdrop-filter: blur(24px) saturate(120%);
+    border-right: 1px solid var(--border);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    z-index: 5;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    padding: 14px 10px 6px;
+  }
+  .new-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    margin-bottom: 2px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel-strong);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+    text-align: left;
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .new-chat-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--border-strong); }
+  .new-chat-btn .plus { font-size: 16px; line-height: 1; color: var(--text-dim); }
+
+  .conv-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .conv-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background 0.15s, color 0.15s;
+  }
+  .conv-item .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .conv-item:hover { background: var(--panel-strong); color: var(--text); }
+  .conv-item.active { background: rgba(255,255,255,0.085); color: var(--text); }
+  .conv-item .del-btn {
+    opacity: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .conv-item:hover .del-btn { opacity: 1; }
+  .conv-item .del-btn:hover { color: var(--danger); background: rgba(229,100,95,0.12); }
+  .conv-empty { padding: 16px 10px; color: var(--text-faint); font-size: 13px; text-align: center; }
+
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+  .main-header {
+    height: 54px;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-dim);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    z-index: 4;
+  }
+  .hamburger { display: none; font-size: 18px; }
+
+  .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    text-align: center;
+    padding: 0 24px;
+  }
+  .hero-wrap { will-change: transform; }
+  .hero-text {
+    font-family: var(--serif);
+    font-size: clamp(34px, 6.2vw, 68px);
+    font-weight: 400;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    color: var(--text);
+  }
+
+  /* The gradient goes HERE, on the letter, not on .hero-text.
+     If the mask sits on the parent and the children have transforms,
+     Chrome paints every glyph from the parent's box origin and the whole
+     headline collapses into one pile. Layout still measures fine, which
+     is what made it such a pain to track down.
+     Animating background-position is safe next to GSAP, it isn't a
+     transform so it can't stomp the tweens. */
+  .letter {
+    display: inline-block;
+    background: linear-gradient(100deg,
+      #ffffff 0%, #ffffff 30%,
+      #7c7c82 45%, #ffffff 60%,
+      #ffffff 100%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: shimmer 7s linear infinite;
+    animation-delay: calc(var(--i, 0) * -140ms);
+  }
+  @keyframes shimmer { to { background-position: -250% 0; } }
+
+  .empty-state .small { font-size: 15px; color: var(--text-dim); max-width: 460px; }
+
+  .row { width: 100%; padding: 22px 0; animation: fadein 0.4s ease-out; }
+  @keyframes fadein {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .row.assistant { background: var(--assistant-bg); }
+  .row-inner {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .avatar.user { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid var(--border); }
+  .avatar.assistant { background: #ededed; color: #0a0a0b; }
+
+  .bubble-content {
+    min-width: 0;
+    flex: 1;
+    line-height: 1.7;
+    font-size: 15px;
+    padding-top: 3px;
+    overflow-wrap: break-word;
+    color: #dcdcde;
+  }
+  .bubble-content p { margin: 0 0 12px; }
+  .bubble-content p:last-child { margin-bottom: 0; }
+  .bubble-content h1, .bubble-content h2, .bubble-content h3 {
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 20px 0 10px;
+    color: var(--text);
+  }
+  .bubble-content h1 { font-size: 22px; }
+  .bubble-content h2 { font-size: 19px; }
+  .bubble-content h3 { font-size: 16px; }
+  .bubble-content ul, .bubble-content ol { margin: 0 0 12px; padding-left: 22px; }
+  .bubble-content li { margin-bottom: 4px; }
+  .bubble-content a { color: #cfcfd4; text-decoration: underline; text-underline-offset: 2px; }
+  .bubble-content a:hover { color: #fff; }
+  .bubble-content blockquote {
+    margin: 0 0 12px;
+    padding: 2px 0 2px 14px;
+    border-left: 2px solid var(--border-strong);
+    color: var(--text-dim);
+  }
+  .bubble-content hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .bubble-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 12px;
+    font-size: 14px;
+    display: block;
+    overflow-x: auto;
+  }
+  .bubble-content th, .bubble-content td {
+    border: 1px solid var(--border);
+    padding: 7px 10px;
+    text-align: left;
+  }
+  .bubble-content th { background: rgba(255,255,255,0.04); font-weight: 600; }
+  .bubble-content code {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 13px;
+    font-family: "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  .bubble-content pre {
+    background: rgba(0,0,0,0.42);
+    border: 1px solid var(--border);
+    color: #e2e2e4;
+    padding: 13px 15px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 0 12px;
+  }
+  .bubble-content pre code { background: none; padding: 0; color: inherit; }
+
+  /* wide equations scroll instead of blowing out the column */
+  .bubble-content .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; margin: 0 0 12px; }
+  .bubble-content .katex { color: #f0f0f2; }
+
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.05em;
+    margin-left: 2px;
+    vertical-align: -0.18em;
+    background: var(--text);
+    animation: caretBlink 1s steps(1) infinite;
+  }
+  @keyframes caretBlink {
+    0%, 50%      { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
+  }
+
+  .typing-dots { display: inline-flex; gap: 4px; padding-top: 6px; }
+  .typing-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.55); opacity: 0.4; }
+    40%           { transform: scale(1);    opacity: 1; }
+  }
+
+  .system-note {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 6px 24px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .composer-wrap { padding: 12px 24px 22px; }
+  .composer {
+    max-width: 740px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 12px 12px 12px 15px;
+    background: var(--bg-raised);
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+  }
+  .composer:focus-within {
+    border-color: var(--border-strong);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .composer textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    max-height: 170px;
+    line-height: 1.45;
+    padding: 5px 0;
+  }
+  .composer textarea::placeholder { color: var(--text-faint); }
+
+  .icon-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 17px;
+    padding: 6px;
+    border-radius: 8px;
+    color: var(--text-dim);
+    flex: none;
+    transition: background 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { background: var(--panel-strong); color: var(--text); }
+
+  .send-btn {
+    border: none;
+    background: #ededed;
+    color: #0a0a0b;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    flex: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, box-shadow 0.25s, opacity 0.15s;
+  }
+  .send-btn:hover:not(:disabled) { animation: softGlow 1.8s ease-in-out infinite; }
+  @keyframes softGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.16); }
+    50%      { box-shadow: 0 0 16px 2px rgba(255,255,255,0.26); }
+  }
+  .send-btn:disabled { background: rgba(255,255,255,0.1); color: var(--text-faint); cursor: default; }
+
+  .hint { text-align: center; font-size: 12px; color: var(--text-faint); margin-top: 10px; }
+
+  .toast {
+    position: fixed;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    z-index: 20;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .hamburger { display: flex; }
+    .sidebar {
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      transform: translateX(-100%);
+      z-index: 30;
+      box-shadow: 12px 0 40px rgba(0,0,0,0.5);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .row-inner, .system-note, .composer { max-width: 100%; }
+    .composer-wrap { padding: 10px 14px 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mesh-blob, .particle, .caret, .letter,
+    .send-btn:hover, .typing-dots span {
+      animation: none !important;
+    }
+    /* letters are transparent + gradient-masked normally, so put the
+       fill back or they vanish once the shimmer is off */
+    .letter {
+      -webkit-text-fill-color: var(--text);
+      color: var(--text);
+      background: none;
+    }
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mesh-bg" aria-hidden="true">
+  <div class="mesh-blob blob-1"></div>
+  <div class="mesh-blob blob-2"></div>
+  <div class="mesh-blob blob-3"></div>
+</div>
+<div class="particles" id="particles" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<aside class="sidebar" id="sidebar">
+  <button class="new-chat-btn" id="newChatBtn"><span class="plus">+</span> New chat</button>
+  <div class="sidebar-label">Chats</div>
+  <div class="conv-list" id="convList"></div>
+</aside>
+
+<main class="main">
+  <div class="main-header">
+    <button class="icon-btn hamburger" id="sidebarToggle" aria-label="Toggle sidebar">&#9776;</button>
+    <span id="mainHeader">New chat</span>
+  </div>
+  <div class="messages" id="messages">
+    <div class="empty-state">
+      <div class="hero-wrap" id="heroWrap">
+        <div class="hero-text" id="heroText">How can I help you today?</div>
+      </div>
+      <div class="small">Ask a question, or attach a document to search over it.</div>
+    </div>
+  </div>
+  <div class="composer-wrap">
+    <div class="composer">
+      <button class="icon-btn" id="attachBtn" title="Attach document">＋</button>
+      <input type="file" id="fileInput" hidden>
+      <textarea id="input" rows="1" placeholder="How can I help you today?"></textarea>
+      <button class="send-btn" id="sendBtn" title="Send" disabled>↑</button>
+    </div>
+    <div class="hint">Documents you attach get indexed into this conversation's knowledge base.</div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- all four are optional, see the has* flags below. if a CDN is blocked
+     the chat still works, it just looks plainer -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const convListEl = document.getElementById('convList');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const newChatBtn = document.getElementById('newChatBtn');
+const attachBtn = document.getElementById('attachBtn');
+const fileInput = document.getElementById('fileInput');
+const mainHeader = document.getElementById('mainHeader');
+const toastEl = document.getElementById('toast');
+const sidebarEl = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
+
+let currentConversationId = null;
+let isStreaming = false;
+let conversationsCache = [];
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hasGSAP = typeof gsap !== 'undefined';
+const hasMarked = typeof marked !== 'undefined';
+const hasPurify = typeof DOMPurify !== 'undefined';
+const hasKatex = typeof renderMathInElement !== 'undefined';
+
+if (hasMarked) marked.setOptions({ breaks: true, gfm: true });
+
+
+/* ---- markdown + math ---- */
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// only used if marked/dompurify didn't load
+function renderMarkdownBasic(raw) {
+  const parts = raw.split(/```([\s\S]*?)```/g);
+  let html = '';
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 1) {
+      html += `<pre><code>${escapeHtml(parts[i].replace(/^\w*\n/, ''))}</code></pre>`;
+      continue;
+    }
+    const escaped = escapeHtml(parts[i]);
+    for (const block of escaped.split(/\n{2,}/)) {
+      if (!block.trim()) continue;
+      const lines = block.split('\n');
+      const isList = lines.every(l => /^\s*[-*]\s+/.test(l));
+      const inline = (s) => s
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      if (isList) {
+        html += '<ul>' + lines.map(l => `<li>${inline(l.replace(/^\s*[-*]\s+/, ''))}</li>`).join('') + '</ul>';
+      } else {
+        html += `<p>${inline(block).replace(/\n/g, '<br>')}</p>`;
+      }
+    }
+  }
+  return html || escapeHtml(raw);
+}
+
+// marked treats \( and \[ as escaped punctuation and eats the backslash,
+// so those delimiters never survive to KaTeX. Stash math behind
+// placeholders first, put it back after parsing. Code spans are matched
+// first in the same pass so a $ inside `code` doesn't get grabbed.
+const MATH_PATTERN = new RegExp([
+  '(```[\\s\\S]*?```|`[^`\\n]*`)|',
+  '(\\$\\$[\\s\\S]*?\\$\\$',
+  '|\\\\\\[[\\s\\S]*?\\\\\\]',
+  '|\\\\\\([\\s\\S]*?\\\\\\)',
+  '|\\$(?!\\s)(?:\\\\.|[^\\\\$\\n])*?[^\\s\\\\$]\\$)',
+].join(''), 'g');
+
+function protectMath(raw) {
+  const stash = [];
+  const text = raw.replace(MATH_PATTERN, (match, code, math) => {
+    if (code !== undefined) return code;
+    stash.push(math);
+    return `@@MATH${stash.length - 1}@@`;
+  });
+  return { text, stash };
+}
+
+// escaped on the way back in, so "$a<b$" survives and we don't hand
+// innerHTML anything raw
+function restoreMath(html, stash) {
+  if (!stash.length) return html;
+  return html.replace(/@@MATH(\d+)@@/g, (m, i) => {
+    const src = stash[Number(i)];
+    return src === undefined ? m : escapeHtml(src);
+  });
+}
+
+// sanitise before innerHTML, model output is untrusted
+function renderRich(raw) {
+  const { text, stash } = protectMath(raw);
+  const html = (hasMarked && hasPurify)
+    ? DOMPurify.sanitize(marked.parse(text))
+    : renderMarkdownBasic(text);
+  return restoreMath(html, stash);
+}
+
+function typesetMath(el) {
+  if (!hasKatex || !el) return;
+  try {
+    renderMathInElement(el, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+      ],
+      ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+      throwOnError: false,
+    });
+  } catch (_) { /* a bad expression shouldn't take out the whole message */ }
+}
+
+// math: false while streaming. half-finished expressions are wrong to
+// typeset and it's wasted work on every frame anyway
+function setContent(el, raw, { math = true } = {}) {
+  el.innerHTML = renderRich(raw);
+  if (math) typesetMath(el);
+}
+
+
+/* ---- motion ---- */
+
+document.addEventListener('visibilitychange', () => {
+  document.body.classList.toggle('anim-paused', document.hidden);
+  if (document.hidden) {
+    stopHeroBeatLoop();
+    if (hasGSAP) gsap.globalTimeline.pause();
+  } else {
+    if (hasGSAP) gsap.globalTimeline.resume();
+    startHeroBeatLoop();
+  }
+});
+
+// 14 is about the limit before it starts looking like dust on the screen
+function spawnParticles() {
+  if (reduceMotion) return;
+  const host = document.getElementById('particles');
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = 2 + Math.random() * 3;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.top = Math.random() * 100 + 'vh';
+    p.style.setProperty('--dur', (12 + Math.random() * 14) + 's');
+    p.style.setProperty('--delay', (Math.random() * 8) + 's');
+    p.style.setProperty('--dx', (Math.random() * 70 - 35) + 'px');
+    p.style.setProperty('--dy', (-25 - Math.random() * 55) + 'px');
+    frag.appendChild(p);
+  }
+  host.appendChild(frag);
+}
+
+// wrap each word so it can't break mid-word, then one span per char
+function splitHeroLetters() {
+  const el = document.getElementById('heroText');
+  if (!el) return null;
+  const text = el.textContent;
+  el.textContent = '';
+  let idx = 0;
+  const words = text.split(' ');
+  words.forEach((word, wi) => {
+    const wordSpan = document.createElement('span');
+    wordSpan.style.display = 'inline-block';
+    wordSpan.style.whiteSpace = 'nowrap';
+    [...word].forEach((ch) => {
+      const letter = document.createElement('span');
+      letter.className = 'letter';
+      letter.style.setProperty('--i', idx++);
+      letter.textContent = ch;
+      wordSpan.appendChild(letter);
+    });
+    el.appendChild(wordSpan);
+    if (wi < words.length - 1) el.appendChild(document.createTextNode(' '));
+  });
+  return el;
+}
+
+let beatTimer = null;
+
+// Beats stick to y/rotation, the breathing tween owns yPercent/scale.
+// Different transform components, so GSAP composes them instead of one
+// overwriting the other. Don't move either onto the other's props.
+function beatWave(letters) {
+  return gsap.timeline()
+    .to(letters, { y: -12, rotation: 4, duration: 0.28, ease: 'power2.out', stagger: 0.018 })
+    .to(letters, { y: 0, rotation: 0, duration: 0.5, ease: 'elastic.out(1, 0.55)', stagger: 0.018 }, '-=0.08');
+}
+function beatBounce(letters) {
+  return gsap.timeline()
+    .to(letters, { y: -18, duration: 0.24, ease: 'power2.out', stagger: 0.014 })
+    .to(letters, { y: 0, duration: 0.55, ease: 'bounce.out', stagger: 0.014 }, '-=0.05');
+}
+function beatTilt(letters) {
+  return gsap.timeline()
+    .to(letters, { rotation: (i) => (i % 2 ? 7 : -7), duration: 0.3, ease: 'power2.out', stagger: 0.016 })
+    .to(letters, { rotation: 0, duration: 0.6, ease: 'elastic.out(1, 0.5)', stagger: 0.016 }, '-=0.1');
+}
+
+// picked at random each time so it doesn't feel like a loop
+const heroBeats = [beatWave, beatBounce, beatTilt];
+
+function playHeroBeat() {
+  const heroText = document.getElementById('heroText');
+  if (!heroText || document.hidden) return;
+  const letters = heroText.querySelectorAll('.letter');
+  if (!letters.length) return;
+  heroBeats[Math.floor(Math.random() * heroBeats.length)](letters);
+}
+
+function startHeroBeatLoop() {
+  if (!hasGSAP || reduceMotion || document.hidden) return;
+  stopHeroBeatLoop();
+  if (!document.getElementById('heroText')) return;
+  beatTimer = setInterval(playHeroBeat, 4000);
+}
+
+function stopHeroBeatLoop() {
+  if (beatTimer) { clearInterval(beatTimer); beatTimer = null; }
+}
+
+// re-run every time the empty state is remounted. matchMedia gives us the
+// reduced-motion branch for free and reverts itself if the setting flips.
+let heroMM = null;
+function initHeroAnimation() {
+  if (heroMM) { heroMM.revert(); heroMM = null; }
+
+  const el = splitHeroLetters();
+  if (!el) { stopHeroBeatLoop(); return; }
+  if (!hasGSAP) { startHeroBeatLoop(); return; }
+
+  const letters = el.querySelectorAll('.letter');
+
+  heroMM = gsap.matchMedia();
+  heroMM.add({
+    motionOk: '(prefers-reduced-motion: no-preference)',
+    reduced: '(prefers-reduced-motion: reduce)',
+  }, (ctx) => {
+    if (ctx.conditions.reduced) return;
+
+    // autoAlpha, not opacity, so an interrupted tween can't leave them
+    // invisible but still hit-testable
+    gsap.from(letters, {
+      autoAlpha: 0, y: 28,
+      duration: 0.6, stagger: 0.025, ease: 'power3.out',
+    });
+
+    gsap.to(letters, {
+      yPercent: -5, scale: 1.03,
+      duration: 1.8, ease: 'sine.inOut',
+      repeat: -1, yoyo: true,
+      stagger: { each: 0.05, from: 'start' },
+    });
+  });
+
+  startHeroBeatLoop();
+}
+
+// one listener on document rather than rebinding on every remount
+if (hasGSAP && !reduceMotion) {
+  const px = gsap.quickTo('#heroWrap', 'x', { duration: 0.7, ease: 'power3' });
+  const py = gsap.quickTo('#heroWrap', 'y', { duration: 0.7, ease: 'power3' });
+  document.addEventListener('mousemove', (e) => {
+    if (!document.getElementById('heroWrap')) return;
+    px((e.clientX / window.innerWidth - 0.5) * 16);
+    py((e.clientY / window.innerHeight - 0.5) * 11);
+  });
+}
+
+function applyMagnetic(btn, strength = 12) {
+  if (!hasGSAP || reduceMotion) return;
+  const moveX = gsap.quickTo(btn, 'x', { duration: 0.3, ease: 'power3' });
+  const moveY = gsap.quickTo(btn, 'y', { duration: 0.3, ease: 'power3' });
+  btn.addEventListener('mousemove', (e) => {
+    const r = btn.getBoundingClientRect();
+    moveX((e.clientX - (r.left + r.width / 2)) * (strength / 100));
+    moveY((e.clientY - (r.top + r.height / 2)) * (strength / 100));
+  });
+  btn.addEventListener('mouseleave', () => { moveX(0); moveY(0); });
+}
+[sendBtn, attachBtn, newChatBtn].forEach(btn => applyMagnetic(btn));
+
+
+/* ---- chat ---- */
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`${res.status} ${res.statusText}: ${text}`);
+  }
+  return res;
+}
+
+function showToast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toastEl.classList.remove('show'), 2500);
+}
+
+function clearMessages() { messagesEl.innerHTML = ''; }
+
+function showEmptyState() {
+  messagesEl.innerHTML = `
+    <div class="empty-state">
+      <div class="hero-wrap" id="heroWrap">
+        <div class="hero-text" id="heroText">How can I help you today?</div>
+      </div>
+      <div class="small">Ask a question, or attach a document to search over it.</div>
+    </div>`;
+  initHeroAnimation();
+}
+
+function scrollToBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+function addRow(role, text) {
+  const emptyState = messagesEl.querySelector('.empty-state');
+  if (emptyState) { emptyState.remove(); stopHeroBeatLoop(); }
+
+  const row = document.createElement('div');
+  row.className = 'row ' + role;
+
+  const inner = document.createElement('div');
+  inner.className = 'row-inner';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar ' + role;
+  avatar.textContent = role === 'user' ? 'U' : 'A';
+
+  const content = document.createElement('div');
+  content.className = 'bubble-content';
+  if (text) setContent(content, text);
+
+  inner.appendChild(avatar);
+  inner.appendChild(content);
+  row.appendChild(inner);
+  messagesEl.appendChild(row);
+
+  // let gsap do it instead of the css fadein when it's around
+  if (hasGSAP && !reduceMotion) {
+    row.style.animation = 'none';
+    gsap.from(row, { opacity: 0, y: 22, scale: 0.97, duration: 0.5, ease: 'back.out(1.5)' });
+  }
+
+  scrollToBottom();
+  return content;
+}
+
+function showTypingIndicator(el) {
+  el.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+}
+
+// drop the caret inside the last block, otherwise it lands on its own line
+function appendCaret(el) {
+  let host = el;
+  while (host.lastElementChild && /^(UL|OL|BLOCKQUOTE)$/.test(host.lastElementChild.tagName)) {
+    host = host.lastElementChild;
+  }
+  const last = host.lastElementChild;
+  if (last && /^(P|LI|H1|H2|H3)$/.test(last.tagName)) host = last;
+  const caret = document.createElement('span');
+  caret.className = 'caret';
+  host.appendChild(caret);
+}
+
+// types the response out instead of dumping whole chunks in. rate scales
+// with how far behind we are so it can't lag a fast stream.
+function createTypewriter(el) {
+  let target = '';
+  let shown = 0;
+  let ended = false;
+  let rafId = null;
+  let resolveDone;
+  const done = new Promise((r) => { resolveDone = r; });
+
+  const paint = (withCaret) => {
+    setContent(el, target.slice(0, shown), { math: false });
+    if (withCaret) appendCaret(el);
+  };
+
+  const tick = () => {
+    if (shown < target.length) {
+      const backlog = target.length - shown;
+      shown = Math.min(target.length, shown + Math.max(2, Math.ceil(backlog / 8)));
+      paint(true);
+      scrollToBottom();
+    }
+    if (ended && shown >= target.length) {
+      rafId = null;
+      paint(false);
+      resolveDone();
+      return;
+    }
+    rafId = requestAnimationFrame(tick);
+  };
+
+  const start = () => { if (rafId === null) rafId = requestAnimationFrame(tick); };
+
+  return {
+    push(fullText) {
+      target = fullText;
+      if (reduceMotion) { shown = target.length; paint(false); scrollToBottom(); return; }
+      start();
+    },
+    finish() {
+      ended = true;
+      if (reduceMotion) { shown = target.length; paint(false); return Promise.resolve(); }
+      start();
+      // rAF is throttled in background tabs and dead in some webviews.
+      // without this the message can stall half-written with the composer
+      // stuck disabled.
+      const guard = setTimeout(() => {
+        shown = target.length;
+        paint(false);
+        resolveDone();
+      }, 4000);
+      return done.then(() => clearTimeout(guard));
+    },
+  };
+}
+
+function addSystemNote(text) {
+  const emptyState = messagesEl.querySelector('.empty-state');
+  if (emptyState) { emptyState.remove(); stopHeroBeatLoop(); }
+
+  const note = document.createElement('div');
+  note.className = 'system-note';
+  note.textContent = text;
+  messagesEl.appendChild(note);
+  scrollToBottom();
+}
+
+function updateHeader() {
+  if (currentConversationId === null) { mainHeader.textContent = 'New chat'; return; }
+  const conv = conversationsCache.find(c => c.id === currentConversationId);
+  mainHeader.textContent = (conv && conv.title) || 'New chat';
+}
+
+// TODO: this refetches the whole list after every send, fine for now but
+// it'll need paginating once there are a few hundred chats
+async function loadConversations() {
+  const res = await api('/chat/list');
+  conversationsCache = await res.json();
+
+  convListEl.innerHTML = '';
+  if (conversationsCache.length === 0) {
+    convListEl.innerHTML = '<div class="conv-empty">No chats yet</div>';
+  }
+  for (const conv of conversationsCache) {
+    const item = document.createElement('div');
+    item.className = 'conv-item' + (conv.id === currentConversationId ? ' active' : '');
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = conv.title || 'New chat';
+    item.appendChild(title);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete conversation';
+    delBtn.onclick = (e) => { e.stopPropagation(); deleteConversation(conv.id); };
+    item.appendChild(delBtn);
+
+    item.onclick = () => selectConversation(conv.id);
+    convListEl.appendChild(item);
+  }
+  updateHeader();
+}
+
+async function selectConversation(id) {
+  if (window.innerWidth <= 768) sidebarEl.classList.remove('open');
+  if (id === currentConversationId) return;
+  currentConversationId = id;
+  clearMessages();
+  await loadConversations();
+
+  const res = await api(`/chat/${id}/messages`);
+  const messages = await res.json();
+
+  if (messages.length === 0) showEmptyState();
+  else for (const m of messages) addRow(m.role, m.content);
+}
+
+async function newConversation() {
+  const res = await api('/chat/conversations', { method: 'POST' });
+  const conv = await res.json();
+  currentConversationId = conv.id;
+  clearMessages();
+  showEmptyState();
+  await loadConversations();
+  inputEl.focus();
+  return conv.id;
+}
+
+async function deleteConversation(id) {
+  await api(`/chat/${id}`, { method: 'DELETE' });
+  if (id === currentConversationId) {
+    currentConversationId = null;
+    clearMessages();
+    showEmptyState();
+  }
+  await loadConversations();
+}
+
+async function ensureConversation() {
+  if (currentConversationId === null) await newConversation();
+  return currentConversationId;
+}
+
+function autoResize() {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 170) + 'px';
+}
+
+function updateSendState() {
+  sendBtn.disabled = isStreaming || inputEl.value.trim().length === 0;
+}
+
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text || isStreaming) return;
+
+  const conversationId = await ensureConversation();
+
+  inputEl.value = '';
+  autoResize();
+  addRow('user', text);
+  const assistantContent = addRow('assistant', '');
+  showTypingIndicator(assistantContent);
+
+  isStreaming = true;
+  updateSendState();
+
+  try {
+    const res = await api('/chat/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: text, conversation_id: conversationId }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    const typer = createTypewriter(assistantContent);
+    let full = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const piece = decoder.decode(value, { stream: true });
+      if (!piece) continue;
+      full += piece;
+      typer.push(full);
+    }
+
+    await typer.finish();
+
+    if (!full.trim()) {
+      assistantContent.innerHTML = '<em style="color:var(--text-dim)">No response.</em>';
+    } else {
+      typesetMath(assistantContent);
+      scrollToBottom();
+    }
+  } catch (err) {
+    assistantContent.textContent = '';
+    const errSpan = document.createElement('span');
+    errSpan.style.color = 'var(--danger)';
+    errSpan.textContent = `Error: ${err.message}`;
+    assistantContent.appendChild(errSpan);
+  } finally {
+    isStreaming = false;
+    updateSendState();
+    await loadConversations();
+  }
+}
+
+async function uploadDocument(file) {
+  const conversationId = await ensureConversation();
+  showToast(`Uploading "${file.name}"...`);
+
+  const formData = new FormData();
+  formData.append('conversation_id', conversationId);
+  formData.append('file', file);
+
+  try {
+    await api('/documents/upload', { method: 'POST', body: formData });
+    addSystemNote(`Uploaded and indexed "${file.name}"`);
+    showToast(`"${file.name}" indexed`);
+  } catch (err) {
+    addSystemNote(`Failed to upload "${file.name}": ${err.message}`);
+    showToast('Upload failed');
+  }
+}
+
+sendBtn.addEventListener('click', sendMessage);
+newChatBtn.addEventListener('click', newConversation);
+attachBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length > 0) {
+    uploadDocument(fileInput.files[0]);
+    fileInput.value = '';
+  }
+});
+inputEl.addEventListener('input', () => { autoResize(); updateSendState(); });
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+sidebarToggle.addEventListener('click', () => sidebarEl.classList.toggle('open'));
+
+// tap outside to close the drawer on mobile
+document.addEventListener('click', (e) => {
+  if (window.innerWidth > 768) return;
+  if (!sidebarEl.classList.contains('open')) return;
+  if (sidebarEl.contains(e.target) || sidebarToggle.contains(e.target)) return;
+  sidebarEl.classList.remove('open');
+});
+
+spawnParticles();
+initHeroAnimation();
+loadConversations();
+inputEl.focus();
+</script>
+</body>
+</html>
