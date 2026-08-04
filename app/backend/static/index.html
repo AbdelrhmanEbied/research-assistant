@@ -7,7 +7,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 
 <style>
@@ -25,8 +25,9 @@
     --danger: #e5645f;
     --code-bg: rgba(255,255,255,0.055);
     --assistant-bg: rgba(255,255,255,0.018);
+    --focus: rgba(255,255,255,0.6);
     --serif: "Playfair Display", "Iowan Old Style", Georgia, "Times New Roman", serif;
-    --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --sans: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
   * { box-sizing: border-box; }
@@ -142,7 +143,20 @@
     transition: background 0.18s, border-color 0.18s;
   }
   .new-chat-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--border-strong); }
-  .new-chat-btn .plus { font-size: 16px; line-height: 1; color: var(--text-dim); }
+
+  /* lucide icons, 24-box stroke paths scaled down per button */
+  .ico { width: 18px; height: 18px; display: block; flex: none; }
+  .new-chat-btn .ico { width: 16px; height: 16px; color: var(--text-dim); }
+  .send-btn .ico { width: 16px; height: 16px; }
+  .del-btn .ico { width: 14px; height: 14px; }
+
+  /* keyboard users got nothing before this */
+  button:focus-visible,
+  .chip:focus-visible,
+  .conv-item:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
 
   .conv-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
   .conv-item {
@@ -241,6 +255,32 @@
   @keyframes shimmer { to { background-position: -250% 0; } }
 
   .empty-state .small { font-size: 15px; color: var(--text-dim); max-width: 460px; }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    max-width: 580px;
+    margin-top: 6px;
+  }
+  .chip {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-dim);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.18s;
+  }
+  .chip:hover {
+    background: var(--panel-strong);
+    border-color: var(--border-strong);
+    color: var(--text);
+    transform: translateY(-1px);
+  }
 
   .row { width: 100%; padding: 22px 0; animation: fadein 0.4s ease-out; }
   @keyframes fadein {
@@ -464,6 +504,16 @@
   }
   .toast.show { opacity: 1; }
 
+  /* 44px minimum hit area on touch. keyed off pointer, not width, since a
+     small window on a desktop still has a precise cursor */
+  @media (pointer: coarse) {
+    .chip { min-height: 44px; padding: 10px 16px; }
+    .icon-btn { min-width: 44px; min-height: 44px; }
+    .send-btn { width: 44px; height: 44px; }
+    .conv-item { min-height: 44px; }
+    .del-btn { min-width: 36px; min-height: 36px; }
+  }
+
   @media (max-width: 768px) {
     .hamburger { display: flex; }
     .sidebar {
@@ -505,14 +555,19 @@
 <div class="vignette" aria-hidden="true"></div>
 
 <aside class="sidebar" id="sidebar">
-  <button class="new-chat-btn" id="newChatBtn"><span class="plus">+</span> New chat</button>
+  <button class="new-chat-btn" id="newChatBtn">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    New chat
+  </button>
   <div class="sidebar-label">Chats</div>
   <div class="conv-list" id="convList"></div>
 </aside>
 
 <main class="main">
   <div class="main-header">
-    <button class="icon-btn hamburger" id="sidebarToggle" aria-label="Toggle sidebar">&#9776;</button>
+    <button class="icon-btn hamburger" id="sidebarToggle" aria-label="Toggle sidebar">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+    </button>
     <span id="mainHeader">New chat</span>
   </div>
   <div class="messages" id="messages">
@@ -521,14 +576,26 @@
         <div class="hero-text" id="heroText">How can I help you today?</div>
       </div>
       <div class="small">Ask a question, or attach a document to search over it.</div>
+      <!-- clicking one fills the composer rather than sending, the prompts
+           have blanks to finish and it avoids firing off an accidental run -->
+      <div class="chips">
+        <button class="chip" data-prompt="Summarize the key points of the document I attached.">Summarize a document</button>
+        <button class="chip" data-prompt="Search the web for recent developments in ">Search the web</button>
+        <button class="chip" data-prompt="Explain , step by step, in plain language.">Explain a concept</button>
+        <button class="chip" data-prompt="Compare  and , with the trade-offs of each.">Compare two options</button>
+      </div>
     </div>
   </div>
   <div class="composer-wrap">
     <div class="composer">
-      <button class="icon-btn" id="attachBtn" title="Attach document">＋</button>
+      <button class="icon-btn" id="attachBtn" title="Attach document" aria-label="Attach document">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      </button>
       <input type="file" id="fileInput" hidden>
       <textarea id="input" rows="1" placeholder="How can I help you today?"></textarea>
-      <button class="send-btn" id="sendBtn" title="Send" disabled>↑</button>
+      <button class="send-btn" id="sendBtn" title="Send" aria-label="Send message" disabled>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+      </button>
     </div>
     <div class="hint">Documents you attach get indexed into this conversation's knowledge base.</div>
   </div>
@@ -556,6 +623,10 @@ const mainHeader = document.getElementById('mainHeader');
 const toastEl = document.getElementById('toast');
 const sidebarEl = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebarToggle');
+
+// grabbed before anything mutates it (splitHeroLetters rewrites the
+// headline), so the empty state only exists in one place: the markup
+const EMPTY_STATE_HTML = messagesEl.innerHTML;
 
 let currentConversationId = null;
 let isStreaming = false;
@@ -852,16 +923,13 @@ function showToast(text) {
   showToast._t = setTimeout(() => toastEl.classList.remove('show'), 2500);
 }
 
+// only icon built in JS, the rest are inline in the markup
+const ICON_X = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
 function clearMessages() { messagesEl.innerHTML = ''; }
 
 function showEmptyState() {
-  messagesEl.innerHTML = `
-    <div class="empty-state">
-      <div class="hero-wrap" id="heroWrap">
-        <div class="hero-text" id="heroText">How can I help you today?</div>
-      </div>
-      <div class="small">Ask a question, or attach a document to search over it.</div>
-    </div>`;
+  messagesEl.innerHTML = EMPTY_STATE_HTML;
   initHeroAnimation();
 }
 
@@ -1003,6 +1071,9 @@ async function loadConversations() {
   for (const conv of conversationsCache) {
     const item = document.createElement('div');
     item.className = 'conv-item' + (conv.id === currentConversationId ? ' active' : '');
+    // it's a div, so it needs this to be reachable by keyboard at all
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
 
     const title = document.createElement('div');
     title.className = 'title';
@@ -1011,12 +1082,16 @@ async function loadConversations() {
 
     const delBtn = document.createElement('button');
     delBtn.className = 'del-btn';
-    delBtn.textContent = '✕';
+    delBtn.innerHTML = ICON_X;
     delBtn.title = 'Delete conversation';
+    delBtn.setAttribute('aria-label', `Delete "${conv.title || 'New chat'}"`);
     delBtn.onclick = (e) => { e.stopPropagation(); deleteConversation(conv.id); };
     item.appendChild(delBtn);
 
     item.onclick = () => selectConversation(conv.id);
+    item.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectConversation(conv.id); }
+    };
     convListEl.appendChild(item);
   }
   updateHeader();
@@ -1159,6 +1234,16 @@ inputEl.addEventListener('input', () => { autoResize(); updateSendState(); });
 inputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
+// delegated, the empty state gets replaced wholesale on every remount
+messagesEl.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  inputEl.value = chip.dataset.prompt;
+  autoResize();
+  updateSendState();
+  inputEl.focus();
+});
+
 sidebarToggle.addEventListener('click', () => sidebarEl.classList.toggle('open'));
 
 // tap outside to close the drawer on mobile
