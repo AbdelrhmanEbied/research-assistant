@@ -1,8 +1,11 @@
-from sentence_transformers import CrossEncoder
-from schemas import RetrievedDocuments
 from collections.abc import Sequence
 
-class reranker:
+from sentence_transformers import CrossEncoder
+
+from rag.rag_schemas import RetrievedDocuments
+
+
+class Reranker:
     def __init__(
             self,
             model: str, 

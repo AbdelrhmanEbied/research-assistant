@@ -1,0 +1,174 @@
+import os
+
+from dotenv import load_dotenv
+from fastembed import SparseTextEmbedding
+from langchain_community.embeddings import FastEmbedEmbeddings
+from qdrant_client import QdrantClient, models
+
+from agent.agent_schemas import ChatMessage, PromptMode
+from agent.prompts import SYSTEM_PROMPT
+from rag.builders import ContextBuilder, PromptBuilder
+from rag.chunker import DocumentChunker
+from rag.embedder import DocumentEmbedder
+from rag.loader import DocumentLoader
+from rag.qdrant_manager import QDrantManager
+from rag.rag_schemas import KnowledgeResult, RetrievedDocuments
+from rag.reranker import Reranker
+from rag.retriever import Retriever
+
+load_dotenv()
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_URL = os.getenv("QDRANT_URL")
+
+class RAGService:
+    def __init__(
+        self,
+        loader,
+        chunker,
+        embedder,
+        qdrant_manager,
+        retriever,
+        reranker,
+        context_builder,
+        prompt_builder,
+    ):
+        self.loader = loader
+        self.chunker = chunker
+        self.embedder = embedder
+        self.qdrant_manager = qdrant_manager
+        self.retriever = retriever
+        self.reranker = reranker
+        self.context_builder = context_builder
+        self.prompt_builder = prompt_builder
+
+    def load_documents(self, sources):
+        return self.loader.load(sources)
+
+    def chunk_documents(self, documents):
+        return self.chunker.chunk(documents)
+
+    def embed_chunks(self, chunks):
+        return self.embedder.embed_documents(chunks)
+
+    def upsert_chunks(self, embedded_chunks):
+        return self.qdrant_manager.upsert_documents(embedded_chunks)
+
+    def index(self, sources):
+        documents = self.load_documents(sources)
+        chunks = self.chunk_documents(documents)
+        embedded_chunks = self.embed_chunks(chunks)
+        return self.upsert_chunks(embedded_chunks)
+
+    def retrieve(self, query, limit):
+        return self.retriever.retrieve(query=query, limit=limit)
+
+    def rerank(self, query, documents, top_k=5):
+        return self.reranker.rerank(query=query, documents=documents, top_k=top_k)
+
+    def build_context(self,documents):
+        return self.context_builder.build(documents=documents)
+
+    def build_prompt(self, question, context, history: list[ChatMessage], mode:PromptMode | str ):
+        return self.prompt_builder.build(question=question, context=context,mode = mode,history=history)
+
+    def prepare(
+        self,
+        *,
+        query: str,
+        mode: PromptMode | str,
+        history: list[ChatMessage],
+        retrieve: bool = True,
+        rerank: bool = True,
+        limit: int = 10,
+        rerank_top_k: int = 5,
+    ) -> KnowledgeResult:
+
+        retrieved_documents: list[RetrievedDocuments] = []
+        reranked_documents: list[RetrievedDocuments] = []
+
+        if retrieve:
+            retrieved_documents = self.retrieve(
+                query=query,
+                limit=limit,
+            )
+
+            if rerank:
+                reranked_documents = self.rerank(
+                    query=query,
+                    documents=retrieved_documents,
+                    top_k=rerank_top_k,
+                )
+            else:
+                reranked_documents = retrieved_documents
+
+        context = self.build_context(documents=reranked_documents)
+
+        prompt = self.build_prompt(
+            mode=mode,
+            question=query,
+            context=context,
+            history=history,
+        )
+
+        return KnowledgeResult(
+            query=query,
+            retrieved_documents=retrieved_documents,
+            reranked_documents=reranked_documents,
+            context=context,
+            prompt=prompt,
+        )
+
+    
+
+
+
+
+
+
+def create_rag_service(
+    reranker: Reranker,
+    db_path: str = "./qdrant_db",
+    collection_name: str = "docs",
+) -> RAGService:
+    print("Loading embedding models...")
+    sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
+    dense_model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    
+    print("Connecting to local Qdrant database...")
+    client = QdrantClient(path=db_path)
+
+    embedder = DocumentEmbedder(
+        dense_embedding_model=dense_model,
+        sparse_embedding_model=sparse_model,
+        batch_size=64,
+        max_retries=5,
+    )
+    
+    manager = QDrantManager(
+        client=client,
+        collection_name=collection_name,
+        dense_dimension=384,
+        distance=models.Distance.COSINE,
+    )
+    
+    manager.create_collection()
+    
+    retriever = Retriever(
+        embedder=embedder,
+        vectorstore=manager,
+    )
+    
+    print("Assembling RAGService...")
+    rag = RAGService(
+        reranker=reranker,
+        retriever=retriever,
+        qdrant_manager=manager,
+        embedder=embedder,
+        chunker=DocumentChunker(),
+        loader=DocumentLoader(),
+        context_builder=ContextBuilder(),
+        prompt_builder=PromptBuilder(system_prompt=SYSTEM_PROMPT),
+    )
+    
+    return rag
+

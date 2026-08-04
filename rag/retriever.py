@@ -1,6 +1,8 @@
-from qdrant_manager import QDrantManager
-from embedder import DocumentEmbedder
-from schemas import SearchType,RetrievedDocuments
+from rag.embedder import DocumentEmbedder
+from rag.qdrant_manager import QDrantManager
+from rag.rag_schemas import RetrievedDocuments, SearchType
+
+
 class Retriever:
     def __init__(
             self,
@@ -17,7 +19,7 @@ class Retriever:
             limit: int = 5,
             search_type: SearchType = SearchType.HYBRID,
     ) -> list[RetrievedDocuments]:
-        embedded_query = self.embedder.embed_query()
+        embedded_query = self.embedder.embed_query(query=query)
 
         result = self.vectorstore.search(
             query= embedded_query,

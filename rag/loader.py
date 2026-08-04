@@ -1,3 +1,6 @@
+from functools import partial
+from pathlib import Path
+
 from langchain_community.document_loaders import (
     BSHTMLLoader,
     CSVLoader,
@@ -6,11 +9,10 @@ from langchain_community.document_loaders import (
     JSONLoader,
     PyMuPDFLoader,
     TextLoader,
-    UnstructuredMarkdownLoader
+    UnstructuredMarkdownLoader,
 )
-from pathlib import Path
-from functools import partial
 from langchain_core.documents import Document
+
 LOADERS = {
     ".pdf": PyMuPDFLoader,      
     ".txt": partial(TextLoader, encoding="utf-8"),
@@ -69,6 +71,3 @@ class DocumentLoader:
         return self._load_file(path)
 
 
-loader = DocumentLoader()
-documents = loader.load("./langgraph/quickstart.txt")
-print(documents[0].metadata)

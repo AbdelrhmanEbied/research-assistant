@@ -3,7 +3,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
-from schemas import EmbeddedQuery,EmbeddedDocument
+
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from qdrant_client import models
@@ -15,6 +15,8 @@ from tenacity import (
     wait_exponential,
 )
 from tqdm.auto import tqdm
+
+from rag.rag_schemas import EmbeddedDocument, EmbeddedQuery
 
 logger = logging.getLogger(__name__)
 

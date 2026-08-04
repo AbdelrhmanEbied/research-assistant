@@ -1,6 +1,8 @@
-from qdrant_client import QdrantClient,models
-from schemas import EmbeddedDocument,EmbeddedQuery
-from schemas import SearchType
+from qdrant_client import QdrantClient, models
+
+from rag.rag_schemas import EmbeddedDocument, EmbeddedQuery, SearchType
+
+
 class QDrantManager:
     def __init__(
         self,
@@ -156,3 +158,8 @@ class QDrantManager:
                         fusion=models.Fusion.RRF,
                     ),
                 )
+
+    def close_client(
+            self,
+    ):
+        return self.client.close()

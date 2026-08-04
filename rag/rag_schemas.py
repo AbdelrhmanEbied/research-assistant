@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+
 from qdrant_client import models
-from typing import Any 
+
+
 @dataclass
 class EmbeddedDocument:
     id: str
@@ -34,3 +37,14 @@ class RetrievedDocuments:
 class Context:
     text: str
     sources: list[dict]
+
+
+@dataclass(slots=True)
+class KnowledgeResult:
+    query: str
+    retrieved_documents: list[RetrievedDocuments]
+    reranked_documents: list[RetrievedDocuments]
+    context: Context
+    prompt: str
+    
+
