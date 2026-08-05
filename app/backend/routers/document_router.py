@@ -42,8 +42,6 @@ async def upload_document(
             file=file,
         )
     except ValueError as e:
-        # bad file type or missing conversation - client's mistake,
-        # not the server's, so it's a 400 not a 500
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
@@ -56,7 +54,7 @@ def list_conversation_documents(
     return repo.list_by_conversation(conversation_id)
 
 
-# every document across every conversation, not scoped to one chat
+
 @router.get("/", response_model=list[DocumentResponse])
 def list_all_documents(
     service: DocumentService = Depends(get_document_service),  # noqa: B008

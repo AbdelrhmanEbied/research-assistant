@@ -187,8 +187,7 @@ class DocumentRepository:
         if document is None:
             return False
 
-        # sqlite won't cascade this FK on its own (needs a pragma we
-        # don't set), so the link row has to be cleared out by hand
+
         self.db.query(ConversationDocument).filter(
             ConversationDocument.document_id == document_id
         ).delete(synchronize_session=False)

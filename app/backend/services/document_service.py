@@ -42,8 +42,7 @@ class DocumentService:
         if conversation is None:
             raise ValueError("Conversation not found.")
 
-        # catch unsupported types (e.g. .mp4) here, not mid-index -
-        # otherwise the loader just blows up and it comes out as a 500
+
         self._validate_extension(file.filename)
 
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -66,8 +65,7 @@ class DocumentService:
                 document.id,
             )
 
-            # tag every chunk with the SQL id so delete_document() can
-            # find and purge exactly these vectors later, not all of them
+
             await run_in_threadpool(
                 self.rag.index,
                 save_path,
@@ -77,8 +75,6 @@ class DocumentService:
             return document
 
         except Exception:
-            # roll back the DB row too, not just the file - otherwise a
-            # failed index leaves an orphaned document behind forever
             if save_path.exists():
                 save_path.unlink(missing_ok=True)
             if document is not None:
@@ -97,8 +93,7 @@ class DocumentService:
         if file_path.exists() and file_path.is_file():
             file_path.unlink()
 
-        # skip this and the vectors stay searchable forever - "deleting"
-        # a document wouldn't actually stop it answering questions
+
         self.rag.qdrant_manager.delete_document(document_id=str(document_id))
 
         self.document_repo.delete(document_id)

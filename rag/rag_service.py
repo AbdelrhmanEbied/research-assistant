@@ -56,8 +56,6 @@ class RAGService:
     def index(self, sources, metadata: dict | None = None):
         documents = self.load_documents(sources)
         if metadata:
-            # stamp it on before chunking so it carries through to every
-            # chunk's payload - lets Qdrant vectors be found again by it
             for doc in documents:
                 doc.metadata.update(metadata)
         chunks = self.chunk_documents(documents)
