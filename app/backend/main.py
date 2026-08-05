@@ -20,7 +20,7 @@ app.include_router(document_router)
 async def health_check():
     return {"status": "ok"}
 
-STATIC_DIR = Path(__file__).parent / "static"
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
-
+    

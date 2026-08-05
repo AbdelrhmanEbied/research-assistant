@@ -190,6 +190,82 @@
   .conv-item .del-btn:hover { color: var(--danger); background: rgba(229,100,95,0.12); }
   .conv-empty { padding: 16px 10px; color: var(--text-faint); font-size: 13px; text-align: center; }
 
+  .docs-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    margin-top: 4px;
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    text-align: left;
+    transition: background 0.15s, color 0.15s;
+  }
+  .docs-btn:hover { background: var(--panel-strong); color: var(--text); }
+  .docs-btn .ico { width: 15px; height: 15px; flex: none; }
+
+  /* --- documents modal --- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .modal-backdrop[hidden] { display: none; }
+  .modal {
+    width: 100%;
+    max-width: 480px;
+    max-height: 72vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .modal-body { overflow-y: auto; padding: 8px; }
+  .modal-empty { padding: 28px 16px; text-align: center; color: var(--text-faint); font-size: 13px; }
+
+  .doc-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    transition: background 0.15s;
+  }
+  .doc-row:hover { background: var(--panel); }
+  .doc-row .doc-icon { color: var(--text-faint); flex: none; }
+  .doc-row .doc-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 13.5px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .doc-row .del-btn { opacity: 1; position: static; }
+
   .main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
   .main-header {
     height: 54px;
@@ -561,7 +637,23 @@
   </button>
   <div class="sidebar-label">Chats</div>
   <div class="conv-list" id="convList"></div>
+  <button class="docs-btn" id="docsBtn">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+    Documents
+  </button>
 </aside>
+
+<div class="modal-backdrop" id="docsModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="docsModalTitle">
+    <div class="modal-header">
+      <h2 id="docsModalTitle">All documents</h2>
+      <button class="icon-btn" id="docsModalClose" aria-label="Close">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="docsModalBody"></div>
+  </div>
+</div>
 
 <main class="main">
   <div class="main-header">
@@ -623,6 +715,10 @@ const mainHeader = document.getElementById('mainHeader');
 const toastEl = document.getElementById('toast');
 const sidebarEl = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebarToggle');
+const docsBtn = document.getElementById('docsBtn');
+const docsModal = document.getElementById('docsModal');
+const docsModalBody = document.getElementById('docsModalBody');
+const docsModalClose = document.getElementById('docsModalClose');
 
 // grabbed before anything mutates it (splitHeroLetters rewrites the
 // headline), so the empty state only exists in one place: the markup
@@ -925,6 +1021,56 @@ function showToast(text) {
 
 // only icon built in JS, the rest are inline in the markup
 const ICON_X = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+const ICON_FILE = '<svg class="ico doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+
+// every document across every conversation, with a delete button per row.
+// separate from the per-conversation attachment list already shown inline.
+async function renderAllDocuments() {
+  docsModalBody.innerHTML = '<div class="modal-empty">Loading…</div>';
+  let docs;
+  try {
+    const res = await api('/documents/');
+    docs = await res.json();
+  } catch (err) {
+    docsModalBody.innerHTML = `<div class="modal-empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+    return;
+  }
+
+  if (docs.length === 0) {
+    docsModalBody.innerHTML = '<div class="modal-empty">No documents uploaded yet.</div>';
+    return;
+  }
+
+  docsModalBody.innerHTML = '';
+  for (const doc of docs) {
+    const row = document.createElement('div');
+    row.className = 'doc-row';
+    row.innerHTML = `
+      ${ICON_FILE}
+      <div class="doc-name" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</div>
+      <button class="icon-btn del-btn" title="Delete document" aria-label="Delete ${escapeHtml(doc.name)}">${ICON_X}</button>
+    `;
+    row.querySelector('.del-btn').addEventListener('click', async () => {
+      try {
+        await api(`/documents/${doc.id}`, { method: 'DELETE' });
+        row.remove();
+        if (!docsModalBody.querySelector('.doc-row')) {
+          docsModalBody.innerHTML = '<div class="modal-empty">No documents uploaded yet.</div>';
+        }
+        showToast(`"${doc.name}" deleted`);
+      } catch (err) {
+        showToast(`Failed to delete "${doc.name}"`);
+      }
+    });
+    docsModalBody.appendChild(row);
+  }
+}
+
+function openDocsModal() {
+  docsModal.hidden = false;
+  renderAllDocuments();
+}
+function closeDocsModal() { docsModal.hidden = true; }
 
 function clearMessages() { messagesEl.innerHTML = ''; }
 
@@ -1242,6 +1388,13 @@ messagesEl.addEventListener('click', (e) => {
   autoResize();
   updateSendState();
   inputEl.focus();
+});
+
+docsBtn.addEventListener('click', openDocsModal);
+docsModalClose.addEventListener('click', closeDocsModal);
+docsModal.addEventListener('click', (e) => { if (e.target === docsModal) closeDocsModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !docsModal.hidden) closeDocsModal();
 });
 
 sidebarToggle.addEventListener('click', () => sidebarEl.classList.toggle('open'));

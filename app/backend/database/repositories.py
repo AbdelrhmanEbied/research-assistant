@@ -160,7 +160,7 @@ class DocumentRepository:
     def list_all(self) -> list[Document]:
         return (
             self.db.query(Document)
-            .order_by(Document.uploaded_at.desc())
+            .order_by(Document.id.desc())
             .all()
         )
 
@@ -186,6 +186,12 @@ class DocumentRepository:
         document = self.get_by_id(document_id)
         if document is None:
             return False
+
+        # sqlite won't cascade this FK on its own (needs a pragma we
+        # don't set), so the link row has to be cleared out by hand
+        self.db.query(ConversationDocument).filter(
+            ConversationDocument.document_id == document_id
+        ).delete(synchronize_session=False)
 
         self.db.delete(document)
         self.db.commit()

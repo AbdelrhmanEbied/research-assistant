@@ -53,8 +53,13 @@ class RAGService:
     def upsert_chunks(self, embedded_chunks):
         return self.qdrant_manager.upsert_documents(embedded_chunks)
 
-    def index(self, sources):
+    def index(self, sources, metadata: dict | None = None):
         documents = self.load_documents(sources)
+        if metadata:
+            # stamp it on before chunking so it carries through to every
+            # chunk's payload - lets Qdrant vectors be found again by it
+            for doc in documents:
+                doc.metadata.update(metadata)
         chunks = self.chunk_documents(documents)
         embedded_chunks = self.embed_chunks(chunks)
         return self.upsert_chunks(embedded_chunks)
