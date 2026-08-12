@@ -8,6 +8,7 @@ from agent.prompts import SYSTEM_PROMPT
 from rag.builders import ContextBuilder, PromptBuilder
 from rag.rag_schemas import KnowledgeResult, RetrievedDocuments
 from rag.reranker import Reranker
+from telemetry import get_current_tracker
 
 load_dotenv()
 tavily_api_key = os.getenv("TAVILY_API_KEY")
@@ -90,18 +91,28 @@ class WebSearchService:
         mode: PromptMode | str,
         history: list[ChatMessage],
     ) -> KnowledgeResult:
-        retrieved_docs = self._search_tavily(query, max_results)
+        tracker = get_current_tracker()
 
-        reranked_docs = self._rerank(query, retrieved_docs)
+        with tracker.span(
+            "web_search",
+            span_type="WEB",
+            latency_metric="web_search_latency_ms",
+        ):
+            retrieved_docs = self._search_tavily(query, max_results)
 
-        context = self.context_builder.build(documents=reranked_docs)
+            reranked_docs = self._rerank(query, retrieved_docs)
 
-        prompt = self.prompt_builder.build(
-            mode=mode,
-            question=query,
-            context=context,
-            history=history,
-        )
+            context = self.context_builder.build(documents=reranked_docs)
+
+            prompt = self.prompt_builder.build(
+                mode=mode,
+                question=query,
+                context=context,
+                history=history,
+            )
+
+        tracker.add_metric("retrieved_documents", len(retrieved_docs))
+        tracker.add_metric("reranked_documents", len(reranked_docs))
 
         return KnowledgeResult(
             query=query,
