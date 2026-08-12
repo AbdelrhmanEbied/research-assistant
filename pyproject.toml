@@ -30,7 +30,6 @@ dependencies = [
     "qdrant-client>=1.18.0",
     "requests>=2.34.2",
     "rich>=15.0.0",
-    "sentence-transformers>=5.6.1",
     "sqlalchemy>=2.0.51",
     "tavily-python>=0.7.27",
     "tenacity>=9.1.4",
