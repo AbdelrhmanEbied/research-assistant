@@ -59,4 +59,5 @@ class AgentState(TypedDict):
     source: KnowledgeSource | None
     knowledge_result: KnowledgeResult | None
     response: str | None
+    conversation_id: str | None
 

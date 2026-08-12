@@ -117,7 +117,8 @@ class QDrantManager:
             self,
             query:EmbeddedQuery,
             search_type: SearchType,
-            limit: int = 5
+            limit: int = 5,
+            qdrant_filter: models.Filter | None = None,
     ):
         match search_type:
 
@@ -127,7 +128,8 @@ class QDrantManager:
                     using = "dense",
                     with_payload= True,
                     limit = limit,
-                    query = query.dense
+                    query = query.dense,
+                    query_filter = qdrant_filter,
                 )
 
             case SearchType.SPARSE:
@@ -137,6 +139,7 @@ class QDrantManager:
                     limit = limit,
                     with_payload=True,
                     query = query.sparse,
+                    query_filter = qdrant_filter,
                 )
 
             case SearchType.HYBRID:
@@ -145,11 +148,13 @@ class QDrantManager:
                     prefetch=[
                         models.Prefetch(
                             query = query.dense,
-                            using = "dense"
+                            using = "dense",
+                            filter = qdrant_filter,
                         ),
                         models.Prefetch(
                             query = query.sparse,
-                            using = "sparse"
+                            using = "sparse",
+                            filter = qdrant_filter,
                         )
                     ],
                     limit = limit,

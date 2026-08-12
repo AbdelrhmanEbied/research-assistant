@@ -15,6 +15,7 @@ from rag.qdrant_manager import QDrantManager
 from rag.rag_schemas import KnowledgeResult, RetrievedDocuments
 from rag.reranker import Reranker
 from rag.retriever import Retriever
+from telemetry import get_current_tracker
 
 load_dotenv()
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
@@ -62,8 +63,8 @@ class RAGService:
         embedded_chunks = self.embed_chunks(chunks)
         return self.upsert_chunks(embedded_chunks)
 
-    def retrieve(self, query, limit):
-        return self.retriever.retrieve(query=query, limit=limit)
+    def retrieve(self, query, limit, conversation_id: str | None = None):
+        return self.retriever.retrieve(query=query, limit=limit, conversation_id=conversation_id)
 
     def rerank(self, query, documents, top_k=5):
         return self.reranker.rerank(query=query, documents=documents, top_k=top_k)
@@ -84,34 +85,47 @@ class RAGService:
         rerank: bool = True,
         limit: int = 10,
         rerank_top_k: int = 5,
+        conversation_id: str | None = None,
     ) -> KnowledgeResult:
 
         retrieved_documents: list[RetrievedDocuments] = []
         reranked_documents: list[RetrievedDocuments] = []
 
-        if retrieve:
-            retrieved_documents = self.retrieve(
-                query=query,
-                limit=limit,
+        tracker = get_current_tracker()
+
+        with tracker.span(
+            "rag_prepare",
+            span_type="RAG",
+            latency_metric="rag_latency_ms",
+        ):
+            if retrieve:
+                retrieved_documents = self.retrieve(
+                    query=query,
+                    limit=limit,
+                    conversation_id=conversation_id,
+                )
+
+                if rerank:
+                    reranked_documents = self.rerank(
+                        query=query,
+                        documents=retrieved_documents,
+                        top_k=rerank_top_k,
+                    )
+                else:
+                    reranked_documents = retrieved_documents
+
+            context = self.build_context(documents=reranked_documents)
+
+            prompt = self.build_prompt(
+                mode=mode,
+                question=query,
+                context=context,
+                history=history,
             )
 
-            if rerank:
-                reranked_documents = self.rerank(
-                    query=query,
-                    documents=retrieved_documents,
-                    top_k=rerank_top_k,
-                )
-            else:
-                reranked_documents = retrieved_documents
-
-        context = self.build_context(documents=reranked_documents)
-
-        prompt = self.build_prompt(
-            mode=mode,
-            question=query,
-            context=context,
-            history=history,
-        )
+        if retrieve:
+            tracker.add_metric("retrieved_documents", len(retrieved_documents))
+            tracker.add_metric("reranked_documents", len(reranked_documents))
 
         return KnowledgeResult(
             query=query,
