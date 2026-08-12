@@ -14,3 +14,5 @@ chat.db
 checkpoint.db
 qdrant_db
 checkpoint*
+# Telemetry
+telemetry.db

@@ -17,6 +17,7 @@ from app.backend.database.models import (
 )
 from rag.rag_service import create_rag_service
 from rag.reranker import Reranker
+from telemetry import init_telemetry
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -26,6 +27,9 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing application services...")
     
     try:
+        logger.info("Initializing telemetry...")
+        init_telemetry()
+
         logger.info("Initializing database tables...")
         await to_thread.run_sync(lambda: Base.metadata.create_all(bind=engine))
 
