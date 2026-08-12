@@ -1,19 +1,18 @@
 from collections.abc import Sequence
 
-from sentence_transformers import CrossEncoder
+from fastembed.rerank.cross_encoder import TextCrossEncoder
 
 from rag.rag_schemas import RetrievedDocuments
+from telemetry import get_current_tracker
 
 
 class Reranker:
     def __init__(
-            self,
-            model: str, 
-            device: str 
+        self,
+        model: str,
     ):
-        self.model = CrossEncoder(
+        self.model = TextCrossEncoder(
             model,
-            device = device,
         )
 
     def rerank(
@@ -22,25 +21,30 @@ class Reranker:
         documents: Sequence[RetrievedDocuments],
         top_k: int = 5,
     ) -> list[RetrievedDocuments]:
-        
-        if not documents:
-            return []
-        
-        topk = min(top_k,len(documents))
-        
-        pairs = [
-            (query,doc.text)
-            for doc in documents
-        ]
 
-        scores = self.model.predict(pairs)
+        with get_current_tracker().span(
+            "rerank",
+            span_type="RERANKER",
+            latency_metric="reranker_latency_ms",
+        ):
+            if not documents:
+                return []
 
-        ranked = sorted(
-            zip(documents,scores),
-            key = lambda x:x[1],
-            reverse=True
-        )
+            topk = min(top_k, len(documents))
 
-        return [doc for doc, _ in ranked[:topk]]
+            document_texts = [doc.text for doc in documents]
 
-    
+            results = list(
+                self.model.rerank(
+                    query=query,
+                    documents=document_texts,
+                )
+            )
+
+            ranked = sorted(
+                zip(documents, results),
+                key=lambda x: x[1],
+                reverse=True,
+            )
+
+            return [doc for doc, _ in ranked[:topk]]

@@ -25,7 +25,7 @@ logger = logging.getLogger("uvicorn.error")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing application services...")
-    
+
     try:
         logger.info("Initializing telemetry...")
         init_telemetry()
@@ -35,31 +35,24 @@ async def lifespan(app: FastAPI):
 
         logger.info("Loading shared Reranker model...")
         shared_reranker = Reranker(
-            model="cross-encoder/ms-marco-MiniLM-L-6-v2",
-            device="cpu",
+            model="Xenova/ms-marco-MiniLM-L-12-v2",
         )
 
         logger.info("Initializing RAG service...")
-        app.state.rag = create_rag_service(
-            reranker=shared_reranker,
-            db_path="./qdrant_db",
-            collection_name="docs"
-        )
+        app.state.rag = create_rag_service(reranker=shared_reranker, db_path="./qdrant_db", collection_name="docs")
 
         logger.info("Initializing Web Search service...")
-        app.state.web_search = create_web_search_service(
-            reranker=shared_reranker
-        )
+        app.state.web_search = create_web_search_service(reranker=shared_reranker)
 
         logger.info("Initializing checkpointer...")
         checkpointer_cm = AsyncSqliteSaver.from_conn_string("checkpoints.db")
         app.state.checkpointer = await checkpointer_cm.__aenter__()
 
         logger.info("Building agent graph...")
-        app.state.graph= build_agent_graph(
+        app.state.graph = build_agent_graph(
             rag=app.state.rag,
             search_service=app.state.web_search,
-            checkpointer=app.state.checkpointer,    
+            checkpointer=app.state.checkpointer,
         )
 
         logger.info("All application services initialized successfully.")
@@ -87,7 +80,6 @@ async def lifespan(app: FastAPI):
             logger.info("Checkpointer closed successfully.")
         except Exception as e:
             logger.error(f"Error closing checkpointer: {e}")
-
 
     app.state.rag = None
     app.state.web_search = None
