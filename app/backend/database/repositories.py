@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.backend.database.models import (
     Conversation,
@@ -160,6 +160,16 @@ class DocumentRepository:
     def list_all(self) -> list[Document]:
         return (
             self.db.query(Document)
+            .order_by(Document.id.desc())
+            .all()
+        )
+
+    def list_all_with_conversations(self) -> list[Document]:
+        return (
+            self.db.query(Document)
+            .options(
+                joinedload(Document.links).joinedload(ConversationDocument.conversation)
+            )
             .order_by(Document.id.desc())
             .all()
         )

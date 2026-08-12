@@ -79,6 +79,11 @@ class Document(Base):
 
     file_path: Mapped[str] = mapped_column(String(500))
 
+    links = relationship(
+        "ConversationDocument",
+        back_populates="document",
+    )
+
 
 class ConversationDocument(Base):
     __tablename__ = "conversation_documents"
@@ -98,4 +103,7 @@ class ConversationDocument(Base):
         back_populates="documents",
     )
 
-    document = relationship("Document")
+    document = relationship(
+        "Document",
+        back_populates="links",
+    )

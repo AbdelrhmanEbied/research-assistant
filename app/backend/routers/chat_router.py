@@ -21,6 +21,7 @@ def get_chat_service(request: Request, db: Session = Depends(get_db)) -> ChatSer
         graph=request.app.state.graph,
         checkpointer=request.app.state.checkpointer,
         db=db,
+        rag=request.app.state.rag,
     )
 
 

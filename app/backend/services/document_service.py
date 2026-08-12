@@ -10,6 +10,11 @@ from app.backend.database.repositories import (
     ConversationRepository,
     DocumentRepository,
 )
+from app.backend.schemas.document import (
+    DocumentConversationResponse,
+    DocumentDetailResponse,
+)
+from telemetry import clear_request_tracking, start_request_tracking
 
 UPLOAD_DIR = Path("data/uploads")
 
@@ -20,6 +25,12 @@ class DocumentService:
         self.db = db
         self.document_repo = DocumentRepository(db)
         self.conversation_repo = ConversationRepository(db)
+
+    def _embedding_model_name(self) -> str | None:
+        try:
+            return getattr(self.rag.embedder.dense_model, "model_name", None)
+        except Exception:
+            return None
 
     def _supported_extensions(self) -> list[str]:
         return sorted(self.rag.loader.loaders)
@@ -38,51 +49,83 @@ class DocumentService:
         conversation_id: int,
         file: UploadFile,
     ):
-        conversation = self.conversation_repo.get_by_id(conversation_id)
-        if conversation is None:
-            raise ValueError("Conversation not found.")
-
-
-        self._validate_extension(file.filename)
-
-        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-        save_path = UPLOAD_DIR / f"{uuid4()}_{file.filename}"
-        document = None
+        tracker = start_request_tracking(
+            route="/documents/upload",
+            conversation_id=conversation_id,
+            embedding_model=self._embedding_model_name(),
+        )
 
         try:
-            async with aiofiles.open(save_path, "wb") as f:
-                content = await file.read()
-                await f.write(content)
-
-            document = self.document_repo.create(
-                name=file.filename,
-                file_path=str(save_path),
-            )
-
-            self.document_repo.link_to_conversation(
-                conversation_id,
-                document.id,
-            )
+            conversation = self.conversation_repo.get_by_id(conversation_id)
+            if conversation is None:
+                raise ValueError("Conversation not found.")
 
 
-            await run_in_threadpool(
-                self.rag.index,
-                save_path,
-                {"document_id": str(document.id)},
-            )
+            self._validate_extension(file.filename)
 
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+            save_path = UPLOAD_DIR / f"{uuid4()}_{file.filename}"
+            document = None
+
+            try:
+                async with aiofiles.open(save_path, "wb") as f:
+                    content = await file.read()
+                    await f.write(content)
+
+                document = self.document_repo.create(
+                    name=file.filename,
+                    file_path=str(save_path),
+                )
+
+                self.document_repo.link_to_conversation(
+                    conversation_id,
+                    document.id,
+                )
+
+                async with tracker.timed("index_latency_ms"):
+                    await run_in_threadpool(
+                        self.rag.index,
+                        save_path,
+                        {
+                            "document_id": str(document.id),
+                            "conversation_id": str(conversation_id),
+                        },
+                    )
+
+            except Exception:
+                if save_path.exists():
+                    save_path.unlink(missing_ok=True)
+                if document is not None:
+                    self.document_repo.delete(document.id)
+                raise
+
+            tracker.finish(success=True)
             return document
 
-        except Exception:
-            if save_path.exists():
-                save_path.unlink(missing_ok=True)
-            if document is not None:
-                self.document_repo.delete(document.id)
+        except Exception as exc:
+            tracker.finish(success=False, error_type=type(exc).__name__)
             raise
+        finally:
+            clear_request_tracking()
 
-    def list_all_documents(self):
-        return self.document_repo.list_all()
+    def list_all_documents(self) -> list[DocumentDetailResponse]:
+        documents = self.document_repo.list_all_with_conversations()
+        return [
+            DocumentDetailResponse(
+                id=document.id,
+                name=document.name,
+                file_path=document.file_path,
+                conversations=[
+                    DocumentConversationResponse(
+                        id=link.conversation.id,
+                        title=link.conversation.title,
+                    )
+                    for link in document.links
+                ],
+            )
+            for document in documents
+        ]
 
     def delete_document(self, document_id: int):
         document = self.document_repo.get_by_id(document_id)

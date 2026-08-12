@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.backend.database.database import get_db
 from app.backend.database.repositories import DocumentRepository
-from app.backend.schemas.document import DocumentResponse
+from app.backend.schemas.document import DocumentDetailResponse, DocumentResponse
 from app.backend.services.document_service import DocumentService
 
 router = APIRouter(
@@ -55,7 +55,7 @@ def list_conversation_documents(
 
 
 
-@router.get("/", response_model=list[DocumentResponse])
+@router.get("/", response_model=list[DocumentDetailResponse])
 def list_all_documents(
     service: DocumentService = Depends(get_document_service),  # noqa: B008
 ):

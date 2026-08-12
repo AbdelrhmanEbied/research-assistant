@@ -7,3 +7,12 @@ class DocumentResponse(BaseModel):
     id: int
     name: str
     file_path: str
+
+
+class DocumentConversationResponse(BaseModel):
+    id: int
+    title: str | None
+
+
+class DocumentDetailResponse(DocumentResponse):
+    conversations: list[DocumentConversationResponse] = []
