@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from app.backend.lifespan import lifespan
 from app.backend.routers.chat_router import router as chat_router
 from app.backend.routers.document_router import router as document_router
+from app.backend.routers.settings_router import router as settings_router
 from app.backend.routers.telemetry_router import router as telemetry_router
 
 app = FastAPI(
@@ -17,6 +18,7 @@ app = FastAPI(
 app.include_router(chat_router)
 app.include_router(document_router)
 app.include_router(telemetry_router)
+app.include_router(settings_router)
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
