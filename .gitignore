@@ -10,9 +10,11 @@ wheels/
 .env
 # Data
 data
-chat.db
-checkpoint.db
+chat.db*
 qdrant_db
-checkpoint*
+# LangGraph checkpoint database (and its WAL/SHM sidecars)
+checkpoints.db*
 # Telemetry
 telemetry.db
+# Local runtime settings (may hold API keys)
+settings.json
