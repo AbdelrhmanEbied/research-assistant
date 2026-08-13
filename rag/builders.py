@@ -32,6 +32,10 @@ class ContextBuilder:
                         "chunk_id",
                         "document_id",
                         "created_at",
+                        "conversation_id",
+                        "chunk_index",
+                        "total_chunks",
+                        "source",
                     }:
                         continue
 

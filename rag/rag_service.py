@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastembed import SparseTextEmbedding
@@ -12,7 +13,7 @@ from rag.chunker import DocumentChunker
 from rag.embedder import DocumentEmbedder
 from rag.loader import DocumentLoader
 from rag.qdrant_manager import QDrantManager
-from rag.rag_schemas import KnowledgeResult, RetrievedDocuments
+from rag.rag_schemas import KnowledgeResult, RetrievedDocuments, SearchType
 from rag.reranker import Reranker
 from rag.retriever import Retriever
 from telemetry import get_current_tracker
@@ -63,8 +64,10 @@ class RAGService:
         embedded_chunks = self.embed_chunks(chunks)
         return self.upsert_chunks(embedded_chunks)
 
-    def retrieve(self, query, limit, conversation_id: str | None = None):
-        return self.retriever.retrieve(query=query, limit=limit, conversation_id=conversation_id)
+    def retrieve(self, query, limit, search_type: str | SearchType | None = None, conversation_id: str | None = None):
+        if isinstance(search_type, str):
+            search_type = SearchType(search_type)
+        return self.retriever.retrieve(query=query, limit=limit, search_type=search_type, conversation_id=conversation_id)
 
     def rerank(self, query, documents, top_k=5):
         return self.reranker.rerank(query=query, documents=documents, top_k=top_k)
@@ -85,6 +88,7 @@ class RAGService:
         rerank: bool = True,
         limit: int = 10,
         rerank_top_k: int = 5,
+        search_type: str | SearchType | None = None,
         conversation_id: str | None = None,
     ) -> KnowledgeResult:
 
@@ -102,6 +106,7 @@ class RAGService:
                 retrieved_documents = self.retrieve(
                     query=query,
                     limit=limit,
+                    search_type=search_type,
                     conversation_id=conversation_id,
                 )
 
@@ -148,8 +153,9 @@ def create_rag_service(
     collection_name: str = "docs",
 ) -> RAGService:
     print("Loading embedding models...")
-    sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
-    dense_model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    cache_dir = os.path.join(str(Path.home()), ".cache", "fastembed")
+    sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25", cache_dir=cache_dir)
+    dense_model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5", cache_dir=cache_dir)
     
     print("Connecting to local Qdrant database...")
     client = QdrantClient(path=db_path)

@@ -13,6 +13,11 @@ from telemetry import get_current_tracker
 load_dotenv()
 tavily_api_key = os.getenv("TAVILY_API_KEY")
 tavily_client = TavilyClient(api_key=tavily_api_key)
+
+#: Tavily search depths. ``basic`` is faster/cheaper, ``advanced`` is more
+#: thorough and takes longer.
+SEARCH_DEPTHS = ("basic", "advanced")
+DEFAULT_SEARCH_DEPTH = "basic"
 class WebSearchService:
     def __init__(
             self,
@@ -34,10 +39,11 @@ class WebSearchService:
         self,
         query: str,
         max_results: int = 5,
-    ) -> KnowledgeResult:
+        search_depth: str = DEFAULT_SEARCH_DEPTH,
+    ) -> list[RetrievedDocuments]:
         response = self.client.search(
             query=query,
-            search_depth="basic",
+            search_depth=search_depth,
             max_results= max_results,
             include_answer=False,
             include_raw_content=False,
@@ -90,15 +96,19 @@ class WebSearchService:
         max_results: int = 5,
         mode: PromptMode | str,
         history: list[ChatMessage],
+        search_depth: str = DEFAULT_SEARCH_DEPTH,
     ) -> KnowledgeResult:
         tracker = get_current_tracker()
+
+        if search_depth not in SEARCH_DEPTHS:
+            search_depth = DEFAULT_SEARCH_DEPTH
 
         with tracker.span(
             "web_search",
             span_type="WEB",
             latency_metric="web_search_latency_ms",
         ):
-            retrieved_docs = self._search_tavily(query, max_results)
+            retrieved_docs = self._search_tavily(query, max_results, search_depth)
 
             reranked_docs = self._rerank(query, retrieved_docs)
 
@@ -113,6 +123,7 @@ class WebSearchService:
 
         tracker.add_metric("retrieved_documents", len(retrieved_docs))
         tracker.add_metric("reranked_documents", len(reranked_docs))
+        tracker.add_tag("search_depth", search_depth)
 
         return KnowledgeResult(
             query=query,

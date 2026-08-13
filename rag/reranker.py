@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from pathlib import Path
 
 from fastembed.rerank.cross_encoder import TextCrossEncoder
 
@@ -11,9 +12,8 @@ class Reranker:
         self,
         model: str,
     ):
-        self.model = TextCrossEncoder(
-            model,
-        )
+        cache_dir = Path.home() / ".cache" / "fastembed"
+        self.model = TextCrossEncoder(model, cache_dir=str(cache_dir))
 
     def rerank(
         self,
