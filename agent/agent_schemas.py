@@ -46,18 +46,30 @@ class ChatMessage(TypedDict):
     role: Literal["user", "assistant"]
     content: str
 
-def append_history(
-    current: list[ChatMessage],
+def replace_history(
+    _current: list[ChatMessage],
     new: list[ChatMessage],
 ) -> list[ChatMessage]:
-    return current + new
+    """Replace rather than accumulate history.
+
+    The complete conversation history is supplied from the local database on
+    every request, so appending to the checkpointer's stale history would
+    duplicate turns. Replacing keeps the graph state consistent with what is
+    actually stored.
+    """
+    return new
 
 class AgentState(TypedDict):
-    history: Annotated[list[ChatMessage], append_history]
+    history: Annotated[list[ChatMessage], replace_history]
     query: str
     mode: PromptMode | None
     source: KnowledgeSource | None
     knowledge_result: KnowledgeResult | None
     response: str | None
     conversation_id: str | None
+    llm_config: dict | None
+    sources: list[dict]
+    mode_override: str | None
+    source_override: str | None
+    retrieval_config: dict | None
 
