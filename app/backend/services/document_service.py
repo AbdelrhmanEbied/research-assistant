@@ -90,6 +90,7 @@ class DocumentService:
                         {
                             "document_id": str(document.id),
                             "conversation_id": str(conversation_id),
+                            "name": document.name,
                         },
                     )
 

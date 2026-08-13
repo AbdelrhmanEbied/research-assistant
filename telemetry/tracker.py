@@ -84,6 +84,14 @@ class TelemetryTracker:
             return
         self._tags[name] = str(value)
 
+    def metrics(self) -> dict[str, float]:
+        """Snapshot of recorded metrics (used to render response details)."""
+        return dict(self._metrics)
+
+    def tags(self) -> dict[str, str]:
+        """Snapshot of recorded tags (used to render response details)."""
+        return dict(self._tags)
+
     def timed(self, metric: str) -> TimedSpan:
         return TimedSpan(self, metric=metric)
 

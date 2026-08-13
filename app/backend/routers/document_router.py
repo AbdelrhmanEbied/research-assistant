@@ -7,6 +7,7 @@ from fastapi import (
     Request,
     UploadFile,
 )
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.backend.database.database import get_db
@@ -52,6 +53,32 @@ def list_conversation_documents(
 ):
     repo = DocumentRepository(db)
     return repo.list_by_conversation(conversation_id)
+
+
+class LinkDocumentsRequest(BaseModel):
+    conversation_id: int
+    document_ids: list[int] = Field(min_length=1)
+
+
+@router.post("/link")
+def link_documents(
+    body: LinkDocumentsRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+):
+    """Attach existing documents to a conversation so retrieval can scope to them."""
+    repo = DocumentRepository(db)
+    existing_ids = {doc.id for doc in repo.list_all()}
+    requested = set(body.document_ids)
+
+    missing = requested - existing_ids
+    if missing:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Documents not found: {sorted(missing)}",
+        )
+
+    linked = repo.ensure_linked(body.conversation_id, list(requested))
+    return {"linked": linked}
 
 
 
