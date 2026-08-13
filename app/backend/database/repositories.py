@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.backend.database.models import (
@@ -49,6 +50,25 @@ class ConversationRepository:
     def list_all(self) -> list[Conversation]:
         return(
             self.db.query(Conversation)
+            .order_by(Conversation.updated_at.desc())
+            .all()
+        )
+
+    def search(self, query: str) -> list[Conversation]:
+        """Find conversations by title or message content (lightweight LIKE)."""
+        like = f"%{query.strip()}%"
+        matching_ids = (
+            self.db.query(Message.conversation_id)
+            .filter(Message.content.ilike(like))
+        )
+        return (
+            self.db.query(Conversation)
+            .filter(
+                or_(
+                    Conversation.title.ilike(like),
+                    Conversation.id.in_(matching_ids),
+                )
+            )
             .order_by(Conversation.updated_at.desc())
             .all()
         )
@@ -112,14 +132,67 @@ class MessageRepository:
     def list_by_conversation(
             self,
             conversation_id: int,
+            limit: int | None = None,
+            offset: int = 0,
     ) -> list[Message]:
-
-        return(
+        """Return messages newest-first (page 0 = latest messages)."""
+        query = (
             self.db.query(Message)
             .filter(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc(),Message.id.asc())
+            .order_by(Message.created_at.desc(), Message.id.desc())
+        )
+        if offset:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+
+        return query.all()
+
+    def list_for_history(
+            self,
+            conversation_id: int,
+    ) -> list[Message]:
+        """Return messages oldest-first, as required for LLM context."""
+        return (
+            self.db.query(Message)
+            .filter(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.asc(), Message.id.asc())
             .all()
         )
+
+    def count_by_conversation(
+            self,
+            conversation_id: int,
+    ) -> int:
+        return (
+            self.db.query(Message)
+            .filter(Message.conversation_id == conversation_id)
+            .count()
+        )
+
+    def get_by_id(self, message_id: int) -> Message | None:
+        return self.db.get(Message, message_id)
+
+    def delete_by_id(self, message_id: int) -> bool:
+        message = self.get_by_id(message_id)
+        if message is None:
+            return False
+        self.db.delete(message)
+        self.db.commit()
+        return True
+
+    def delete_after_id(self, conversation_id: int, after_id: int) -> int:
+        """Delete messages in a conversation with ``id > after_id``."""
+        deleted_count = (
+            self.db.query(Message)
+            .filter(
+                Message.conversation_id == conversation_id,
+                Message.id > after_id,
+            )
+            .delete(synchronize_session=False)
+        )
+        self.db.commit()
+        return deleted_count
 
     def delete_by_conversation(
             self,
@@ -133,6 +206,19 @@ class MessageRepository:
         )
         self.db.commit()
         return deleted_count
+
+    def update_metadata(
+            self,
+            message_id: int,
+            metadata: dict | None,
+    ) -> Message | None:
+        message = self.db.get(Message, message_id)
+        if message is None:
+            return None
+        message.extra = metadata or None
+        self.db.commit()
+        self.db.refresh(message)
+        return message
 
 
 
@@ -183,6 +269,27 @@ class DocumentRepository:
         self.db.commit()
         self.db.refresh(link)
         return link
+
+    def is_linked(self, conversation_id: int, document_id: int) -> bool:
+        return (
+            self.db.query(ConversationDocument)
+            .filter(
+                ConversationDocument.conversation_id == conversation_id,
+                ConversationDocument.document_id == document_id,
+            )
+            .first()
+            is not None
+        )
+
+    def ensure_linked(self, conversation_id: int, document_ids: list[int]) -> list[int]:
+        """Link documents to a conversation, skipping already-linked ones."""
+        linked = []
+        for document_id in document_ids:
+            if self.is_linked(conversation_id, document_id):
+                continue
+            self.link_to_conversation(conversation_id, document_id)
+            linked.append(document_id)
+        return linked
 
     def list_by_conversation(self, conversation_id: int) -> list[Document]:
         return (
