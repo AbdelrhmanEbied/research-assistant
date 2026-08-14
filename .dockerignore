@@ -1,0 +1,24 @@
+# Version control
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+
+# Local runtime data (persisted via volumes)
+*.db
+*.db-shm
+*.db-wal
+qdrant_db
+data
+settings.json
+.env
+
+# Tests & docs
+tests
+README.md
+assets

@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        BAKE_MODELS: "true"
+    image: research-assistant:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - research_data:/data
+      - fastembed_cache:/home/appuser/.cache/fastembed
+    restart: unless-stopped
+
+volumes:
+  research_data:
+  fastembed_cache:
