@@ -71,11 +71,16 @@ class RAGService:
         limit,
         search_type: str | SearchType | None = None,
         conversation_id: str | None = None,
+        group_by_document: bool = False,
     ):
         if isinstance(search_type, str):
             search_type = SearchType(search_type)
         return self.retriever.retrieve(
-            query=query, limit=limit, search_type=search_type, conversation_id=conversation_id
+            query=query,
+            limit=limit,
+            search_type=search_type,
+            conversation_id=conversation_id,
+            group_by_document=group_by_document,
         )
 
     def rerank(self, query, documents, top_k=5):
@@ -101,7 +106,11 @@ class RAGService:
         rerank_top_k: int = 5,
         search_type: str | SearchType | None = None,
         conversation_id: str | None = None,
+        group_by_document: bool | None = None,
     ) -> KnowledgeResult:
+
+        if group_by_document is None:
+            group_by_document = PromptMode(mode) == PromptMode.COMPARE
 
         retrieved_documents: list[RetrievedDocuments] = []
         reranked_documents: list[RetrievedDocuments] = []
@@ -119,14 +128,22 @@ class RAGService:
                     limit=limit,
                     search_type=search_type,
                     conversation_id=conversation_id,
+                    group_by_document=group_by_document,
                 )
 
                 if rerank:
-                    reranked_documents = self.rerank(
-                        query=query,
-                        documents=retrieved_documents,
-                        top_k=rerank_top_k,
-                    )
+                    if group_by_document:
+                        reranked_documents = self.reranker.rerank_diversified(
+                            query=query,
+                            documents=retrieved_documents,
+                            top_k=rerank_top_k,
+                        )
+                    else:
+                        reranked_documents = self.rerank(
+                            query=query,
+                            documents=retrieved_documents,
+                            top_k=rerank_top_k,
+                        )
                 else:
                     reranked_documents = retrieved_documents
 

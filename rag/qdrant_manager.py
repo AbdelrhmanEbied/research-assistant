@@ -77,6 +77,68 @@ class QDrantManager:
             wait=True,
         )
 
+    def list_document_ids(
+        self,
+        qdrant_filter: models.Filter | None = None,
+    ) -> list[tuple[str, str | None]]:
+        """Distinct ``(document_id, name)`` pairs within ``qdrant_filter`` scope.
+
+        Walks the collection with ``client.scroll`` (no similarity needed) and
+        deduplicates on ``document_id``.
+        """
+        document_ids: dict[str, str | None] = {}
+        offset = None
+
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=qdrant_filter,
+                limit=100,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+
+            for point in points:
+                document_id = point.payload.get("document_id")
+                if document_id and document_id not in document_ids:
+                    document_ids[document_id] = point.payload.get("name")
+
+            if offset is None:
+                break
+
+        return list(document_ids.items())
+
+    def get_points_by_document(
+        self,
+        document_id: str,
+        qdrant_filter: models.Filter | None = None,
+        limit: int = 100,
+    ):
+        """Return a document's points ordered by ``chunk_index``.
+
+        Combines ``qdrant_filter`` (e.g. the conversation scope) with the
+        ``document_id`` condition so only in-scope chunks are returned.
+        """
+        document_condition = models.FieldCondition(
+            key="document_id",
+            match=models.MatchValue(value=document_id),
+        )
+
+        must = list(qdrant_filter.must or []) if qdrant_filter else []
+        must.append(document_condition)
+
+        points, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=models.Filter(must=must),
+            limit=limit,
+            with_payload=True,
+            with_vectors=False,
+            order_by=models.OrderBy(key="chunk_index"),
+        )
+
+        return points
+
     def search(
         self,
         query: EmbeddedQuery,
