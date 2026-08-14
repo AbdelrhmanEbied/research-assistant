@@ -42,5 +42,21 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+    "ruff>=0.6.0",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["agent", "rag", "app", "telemetry"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"paths.py" = "paths.py"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "C4"]
