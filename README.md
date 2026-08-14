@@ -153,9 +153,14 @@ research-assistant/
 │   ├── test_routers.py
 │   ├── test_settings.py
 │   └── test_telemetry.py
+├── .github/
+│   └── workflows/ci-cd.yml
 ├── .env.example
+├── .dockerignore
+├── Dockerfile
+├── docker-compose.yml
+├── paths.py
 ├── pyproject.toml
-├── requirements.txt
 ├── uv.lock
 └── README.md
 ```
@@ -187,12 +192,10 @@ On Windows:
 ### 3. Install dependencies
 
 ```bash
-# If you are using pip
-pip install -r requirements.txt
-
-# Or if you are using uv
 uv sync
 ```
+
+> Prefer `uv` — the lockfile (`uv.lock`) pins exact versions. With pip you can install the project directly with `pip install .`.
 
 ### 4. Configure your environment
 
