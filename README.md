@@ -2,6 +2,8 @@
 
 A local-first AI research assistant with a clean web UI for chatting with LLMs, uploading documents, and searching your knowledge base with hybrid RAG. Your chats, documents, and settings live on your own machine. Models, retrieval options, and API keys are configurable from a Settings page — no code editing required.
 
+[![CI/CD](https://github.com/AbdelrhmanEbied/research-assistant/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/AbdelrhmanEbied/research-assistant/actions/workflows/ci-cd.yml)
+
 ## Demo
 
 ![Demo](assets/demo.gif)
@@ -48,8 +50,8 @@ This project was built to learn and practice:
 * Live web search via Tavily (basic / advanced depth)
 * FastEmbed embeddings and cross-encoder reranking
 * Telemetry: local SQLite analytics store and in-app dashboard
-* FastAPI backend
-* Frontend built with HTML, CSS, and JavaScript
+* Dockerized: single-image container with pre-baked embedding models and health checks
+* CI/CD pipeline: lint, format, tests, and automated image publishing to GHCR
 
 ## Tech Stack
 
@@ -63,6 +65,7 @@ This project was built to learn and practice:
 * FastEmbed
 * Tavily
 * HTML, CSS, JavaScript
+* Docker
 
 ## How it works
 
@@ -167,80 +170,86 @@ research-assistant/
 
 ## Getting started
 
-### 1. Clone the repository
+You can run Research-Assistant either **with Docker** (recommended) or **locally with uv**.
+
+### Option A — Run with Docker (recommended)
+
+Requires [Docker](https://docs.docker.com/engine/install/) with the Compose plugin.
 
 ```bash
 git clone https://github.com/AbdelrhmanEbied/research-assistant.git
 cd research-assistant
+
+cp .env.example .env
+# fill in your API keys (see "Environment variables" below)
+
+docker compose up --build -d
 ```
 
-### 2. Create a virtual environment
+Open `http://localhost:8000`.
 
-Requires Python 3.14+.
+What the compose setup does:
+
+* builds the image with `BAKE_MODELS=true`, pre-downloading the FastEmbed embedding, sparse (BM25), and reranker models into the image so the first run starts fast
+* maps port `8000` on your host to the app
+* loads your keys from `.env`
+* persists data in two named volumes:
+  * `research_data` — chats, documents, uploads, and the telemetry store (`/data`)
+  * `fastembed_cache` — model downloads (`/home/appuser/.cache/fastembed`)
+
+Useful commands:
 
 ```bash
+docker compose logs -f            # follow the app logs
+docker compose down               # stop the app (keeps your volumes)
+docker compose down -v            # stop AND delete your data
+docker compose pull               # pull a prebuilt image instead of building
+```
+
+> Building with `BAKE_MODELS=true` makes the image larger. Set it to `false` in `docker-compose.yml` to skip pre-downloading; models are then fetched on demand at runtime (the first retrieval will be slower).
+
+### Option B — Run locally with uv
+
+Requires Python 3.14+ and [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone https://github.com/AbdelrhmanEbied/research-assistant.git
+cd research-assistant
+
 python -m venv .venv
-source .venv/bin/activate
-```
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-On Windows:
-
-```bash
-.venv\Scripts\activate
-```
-
-### 3. Install dependencies
-
-```bash
 uv sync
+
+cp .env.example .env
+# fill in your API keys (see "Environment variables" below)
+
+uv run uvicorn app.backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 > Prefer `uv` — the lockfile (`uv.lock`) pins exact versions. With pip you can install the project directly with `pip install .`.
 
-### 4. Configure your environment
-
-Copy `.env.example` to `.env` and fill in your keys:
-
-```bash
-cp .env.example .env
-```
-
-On Windows:
-
-```bash
-copy .env.example .env
-```
-
-```env
-# LLM — used as bootstrap defaults, overridable from the Settings page
-GEMINI_API_KEY=your_gemini_api_key_here
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-LLM_MODEL=gemini-3.5-flash-lite
-LLM_PROVIDER=google_genai
-
-# Web search
-TAVILY_API_KEY=your_tavily_api_key_here
-
-# Telemetry
-TELEMETRY_ENABLED=true
-TELEMETRY_DB_PATH=telemetry.db
-ENVIRONMENT=development
-APP_VERSION=0.1.0
-```
-
-### 5. Run the app
-
-```bash
-uvicorn app.backend.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-> If you use [uv](https://github.com/astral-sh/uv) as your package manager, you can run it instead with:
-> ```bash
-> uv run uvicorn app.backend.main:app --host 127.0.0.1 --port 8000 --reload
-> ```
-
 Then open `http://127.0.0.1:8000` in your browser.
+
+### Environment variables
+
+Copy `.env.example` to `.env` and fill in your keys. None are strictly required to boot — set the keys for the providers you want to use:
+
+| Variable | Purpose |
+|---|---|
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API key |
+| `LLM_MODEL` | Default model (e.g. `gemini-3.5-flash-lite`) |
+| `LLM_PROVIDER` | Default provider: `google_genai`, `openai`, or `anthropic` |
+| `TAVILY_API_KEY` | Key for live web search |
+| `TELEMETRY_ENABLED` | `true`/`false` to toggle the telemetry store |
+| `TELEMETRY_DB_PATH` | Path to the telemetry SQLite file |
+| `DATA_DIR` | Directory for runtime data (set to `/data` in Docker) |
+| `ENVIRONMENT` | `development`, `staging`, `production`, … |
+| `APP_VERSION` | Version tag recorded in telemetry |
+
+Keys and defaults can also be changed at runtime from the **Settings** page — env vars only seed the defaults on first run.
 
 ## Configuration
 
@@ -252,8 +261,17 @@ Settings are managed from the **Settings** page in the UI and persisted to a loc
 ## Running tests
 
 ```bash
-pytest
+uv run pytest
 ```
+
+Tests live in `tests/` and cover the agent graph, RAG builders, chat streaming, routers, settings, and telemetry.
+
+## CI/CD
+
+A GitHub Actions workflow (`.github/workflows/ci-cd.yml`) runs on every push to `main`, `v*` tags, and all pull requests:
+
+* **Lint & Test** — sets up Python 3.14 with `uv`, installs the locked dependencies, then runs `ruff check`, `ruff format --check`, and `pytest`.
+* **Build & Push** — on pushes only (after lint/tests pass), builds the Docker image with BuildKit caching and pushes it to the GitHub Container Registry (`ghcr.io/<owner>/research-assistant`) tagged with the short commit SHA, `latest` on the default branch, and semver tags for `v*` releases.
 
 ## Credits
 
