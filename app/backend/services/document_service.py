@@ -14,9 +14,10 @@ from app.backend.schemas.document import (
     DocumentConversationResponse,
     DocumentDetailResponse,
 )
+from paths import data_path
 from telemetry import clear_request_tracking, start_request_tracking
 
-UPLOAD_DIR = Path("data/uploads")
+UPLOAD_DIR = data_path("data/uploads")
 
 
 class DocumentService:
@@ -59,7 +60,6 @@ class DocumentService:
             conversation = self.conversation_repo.get_by_id(conversation_id)
             if conversation is None:
                 raise ValueError("Conversation not found.")
-
 
             self._validate_extension(file.filename)
 
@@ -136,7 +136,6 @@ class DocumentService:
         file_path = Path(document.file_path)
         if file_path.exists() and file_path.is_file():
             file_path.unlink()
-
 
         self.rag.qdrant_manager.delete_document(document_id=str(document_id))
 

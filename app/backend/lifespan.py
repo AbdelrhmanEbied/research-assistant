@@ -18,6 +18,7 @@ from app.backend.database.models import (
     Document,  # noqa: F401
     Message,  # noqa: F401
 )
+from paths import data_path
 from rag.rag_service import create_rag_service
 from rag.reranker import Reranker
 from telemetry import init_telemetry
@@ -45,13 +46,15 @@ async def lifespan(app: FastAPI):
         )
 
         logger.info("Initializing RAG service...")
-        app.state.rag = create_rag_service(reranker=shared_reranker, db_path="./qdrant_db", collection_name="docs")
+        app.state.rag = create_rag_service(
+            reranker=shared_reranker, db_path=str(data_path("qdrant_db")), collection_name="docs"
+        )
 
         logger.info("Initializing Web Search service...")
         app.state.web_search = create_web_search_service(reranker=shared_reranker)
 
         logger.info("Initializing checkpointer...")
-        checkpointer_conn = await aiosqlite.connect("checkpoints.db")
+        checkpointer_conn = await aiosqlite.connect(str(data_path("checkpoints.db")))
         checkpointer_serde = JsonPlusSerializer(
             allowed_msgpack_modules=[
                 ("agent.agent_schemas", "PromptMode"),
@@ -61,9 +64,7 @@ async def lifespan(app: FastAPI):
                 ("rag.rag_schemas", "RetrievedDocuments"),
             ],
         )
-        app.state.checkpointer = AsyncSqliteSaver(
-            checkpointer_conn, serde=checkpointer_serde
-        )
+        app.state.checkpointer = AsyncSqliteSaver(checkpointer_conn, serde=checkpointer_serde)
         await app.state.checkpointer.setup()
 
         logger.info("Building agent graph...")

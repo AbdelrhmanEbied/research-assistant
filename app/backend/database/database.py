@@ -3,7 +3,9 @@ from collections.abc import Generator
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = "sqlite:///chat.db"
+from paths import data_path
+
+DATABASE_URL = f"sqlite:///{data_path('chat.db')}"
 
 engine = create_engine(
     DATABASE_URL,
@@ -16,6 +18,7 @@ def _set_sqlite_pragma(dbapi_connection, _connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.close()
+
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -31,6 +34,3 @@ def get_db() -> Generator:
         yield db
     finally:
         db.close()
-
-
-

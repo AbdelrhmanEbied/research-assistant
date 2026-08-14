@@ -8,11 +8,13 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from paths import data_path
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SETTINGS_PATH = Path("settings.json")
+DEFAULT_SETTINGS_PATH = data_path("settings.json")
 
 #: Provider -> label, env var that seeds the key, and a curated list of
 #: model identifiers. The list is a convenience for the Settings UI; users can
@@ -141,9 +143,6 @@ class SettingsStore:
         else:
             keys.pop(provider, None)
         self.set("api_keys", keys)
-
-    def clear_api_key(self, provider: str) -> None:
-        self.set_api_key(provider, None)
 
     # --- retrieval defaults -------------------------------------------------
 
