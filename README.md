@@ -17,6 +17,7 @@ Research-Assistant gives you a simple GUI where you can:
 * upload documents into a local knowledge base
 * scope retrieval to specific documents or use live web search via Tavily
 * force a mode (chat, summarize, compare, explain) or source (documents, web, chat) per request
+* **pick a response mode per request — Fast for low latency, or Thinking for a Claude-style reasoning agent** that streams its chain of thought and runs local tools (calculator, Python sandbox, document reading) before answering
 * stream responses with per-response details (model, retrieval options, latency, token usage) and citations
 * regenerate an answer, export a conversation (markdown or JSON), rename chats, and search across them
 * view an analytics dashboard of requests, spans, and token usage
@@ -37,18 +38,36 @@ This project was built to learn and practice:
 
 ## Features
 
+### Agent & chat
+
 * Multi-provider LLM support (Gemini, OpenAI, Claude)
+* **Thinking / Fast modes** — a per-request toggle next to the composer:
+  * **Fast** — single-pass generation for low latency (Gemini 3 models are configured with `thinking_level="minimal"`)
+  * **Thinking** — a LangGraph ReAct loop that reasons step by step (Gemini 3 uses `thinking_level="high"` + `include_thoughts=True`), can call tools, and streams a collapsible **Thinking** panel above the final answer
+* **Live thinking stream** — the provider's actual thought content (Gemini exposes it as `thinking` content blocks) streams progressively into the panel while generating, with live tool statuses such as *Running Python...*, *Reading documents...*, and *Calling calculator...*
+* **Local-first agent tools** (no extra dependencies):
+  * `calculator` — safe AST-whitelisted arithmetic using `math`/`statistics`
+  * `python_code_executor` — runs Python in an isolated subprocess (`sys.executable -I`) in a per-conversation workspace with a 30s timeout
+  * `list_documents` / `read_document` — discover and read the documents scoped to the current conversation
 * Settings page for LLM defaults, API keys, and retrieval defaults
 * Per-request mode/source overrides and retrieval controls (search type, rerank, limit, web search depth)
 * Local chat UI with streaming responses, citations, and per-response details
+* **Single send/stop button** — the composer button toggles between sending a message and stopping generation while the model is replying
 * Chat history stored locally with SQLite and SQLAlchemy (WAL mode)
 * Conversation search, rename, export, and paginated history
 * Regenerate answers
+
+### Retrieval & documents
+
 * Document upload and management, with compare and summarize
+* **Fair multi-document retrieval** — compare queries are grouped per document (each in-scope document is queried separately with `ceil(limit / n)` chunks) and the reranker greedily guarantees ≥1 chunk per document before filling by relevance, so one document can't dominate the results
 * Link documents to a conversation for scoped retrieval
-* Hybrid RAG retrieval with Qdrant
+* Hybrid RAG retrieval with Qdrant (dense, sparse, and hybrid search types)
 * Live web search via Tavily (basic / advanced depth)
 * FastEmbed embeddings and cross-encoder reranking
+
+### Operations
+
 * Telemetry: local SQLite analytics store and in-app dashboard
 * Dockerized: single-image container with pre-baked embedding models and health checks
 * CI/CD pipeline: lint, format, tests, and automated image publishing to GHCR
@@ -73,8 +92,20 @@ This project was built to learn and practice:
 2. You send a message through the frontend (optionally picking a mode, source, and retrieval options).
 3. The frontend sends the request to the FastAPI backend.
 4. The LangGraph agent classifies the request — or honors your explicit overrides — retrieves context from your documents (Qdrant) or the web (Tavily) as needed, and streams the answer back.
-5. Documents are embedded with FastEmbed and stored in Qdrant for hybrid search.
-6. Chats, messages, and metadata are stored locally; every request is recorded in the local telemetry store.
+5. In **Thinking** mode the request is routed through a ReAct loop: the model reasons (streaming its thoughts), optionally calls local tools, then produces a final answer. The backend tags each streamed event so the frontend can separate thinking content from the final answer.
+6. Documents are embedded with FastEmbed and stored in Qdrant for hybrid search.
+7. Chats, messages, and metadata are stored locally; every request is recorded in the local telemetry store.
+
+### Thinking-mode streaming pipeline
+
+```
+Gemini API → LangChain (thinking_level=high, include_thoughts=true)
+           → LangGraph agent_reason ↔ execute_tools loop
+           → FastAPI stream (thought blocks + tool statuses + final answer)
+           → frontend Thinking panel (collapsible) + answer bubble
+```
+
+Gemini 3 models expose their reasoning as `{"type": "thinking"}` content blocks. The backend streams those blocks live, adds human-readable tool statuses from `on_tool_start` events, and buffers the answer text until the call ends — so thinking and answer events can never be mixed. Models that don't expose thinking simply stream their answer with no panel.
 
 ## Project structure
 
@@ -86,6 +117,7 @@ research-assistant/
 │   ├── llms.py
 │   ├── nodes.py
 │   ├── prompts.py
+│   ├── tools.py            # calculator, python_code_executor, document tools
 │   ├── web_service.py
 │   └── __init__.py
 ├── app/
@@ -153,9 +185,11 @@ research-assistant/
 │   ├── test_builders.py
 │   ├── test_chat_service.py
 │   ├── test_llms.py
+│   ├── test_retrieval.py
 │   ├── test_routers.py
 │   ├── test_settings.py
-│   └── test_telemetry.py
+│   ├── test_telemetry.py
+│   └── test_tools.py
 ├── .github/
 │   └── workflows/ci-cd.yml
 ├── .env.example
@@ -258,13 +292,26 @@ Settings are managed from the **Settings** page in the UI and persisted to a loc
 * **LLM** — choose the default model and provider (Gemini, OpenAI, or Claude) and store the corresponding API keys. You can also override the model per request from the chat input row.
 * **Retrieval** — set defaults for the search type (hybrid, dense, sparse), the number of documents retrieved, reranking, and the Tavily web search depth (basic, advanced).
 
+### Using Thinking mode
+
+1. In the composer toolbar, toggle **Fast / Thinking** (Thinking is recommended for analysis, math, comparisons, and anything that benefits from step-by-step reasoning).
+2. Send your message. The assistant streams its reasoning into a collapsible **Thinking** panel above the final answer, including live tool activity (Python execution, document reads, calculator calls).
+3. Click the panel header to expand or collapse it. The thinking content is saved with the message and remains expandable when you reopen the conversation.
+
+> Thinking mode works best with Gemini 3 models (which support `thinking_level` and `include_thoughts`). On other providers/models it degrades gracefully to a tool-enabled agent loop without a thought stream.
+
 ## Running tests
 
 ```bash
 uv run pytest
 ```
 
-Tests live in `tests/` and cover the agent graph, RAG builders, chat streaming, routers, settings, and telemetry.
+Tests live in `tests/` and cover the agent graph (including the thinking tool loop, thinking-config wiring, and fast-mode bypass), RAG builders, per-document retrieval and diversified reranking, local tool execution, chat streaming (thinking markers, tool statuses, error handling), routers, settings, and telemetry.
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+```
 
 ## CI/CD
 
