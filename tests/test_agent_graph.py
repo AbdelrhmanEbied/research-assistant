@@ -63,12 +63,12 @@ class FakeGenLLM:
 def make_graph(monkeypatch, *, source, docs, search_calls_expected, gen_answer="the answer"):
     rag_result = make_result("q", docs)
     rag = FakeRAG(rag_result)
-    search = FakeSearchService(make_result("q", [make_doc("w", {"title": "T", "url": "https://x"})]))
+    search = FakeSearchService(
+        make_result("q", [make_doc("w", {"title": "T", "url": "https://x"})])
+    )
 
     gen = FakeGenLLM(gen_answer)
-    cls = SimpleNamespace(
-        invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=source)
-    )
+    cls = SimpleNamespace(invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=source))
     monkeypatch.setattr("agent.nodes.get_llms", lambda **kwargs: (gen, cls))
 
     graph = build_agent_graph(rag=rag, search_service=search, checkpointer=InMemorySaver())
@@ -85,7 +85,9 @@ def make_graph(monkeypatch, *, source, docs, search_calls_expected, gen_answer="
 )
 def test_graph_routes_by_classified_source(monkeypatch, source, search_calls_expected):
     docs = [make_doc("alpha", {"name": "a.pdf", "document_id": "1"})]
-    graph, gen, rag, search = make_graph(monkeypatch, source=source, docs=docs, search_calls_expected=search_calls_expected)
+    graph, gen, rag, search = make_graph(
+        monkeypatch, source=source, docs=docs, search_calls_expected=search_calls_expected
+    )
 
     result = graph.invoke(
         {"query": "hello", "conversation_id": "1", "history": []},
@@ -167,11 +169,23 @@ def test_graph_replaces_history_across_invocations(monkeypatch):
     config = {"configurable": {"thread_id": "1"}}
 
     graph.invoke(
-        {"query": "first", "conversation_id": "1", "history": [{"role": "user", "content": "first"}]},
+        {
+            "query": "first",
+            "conversation_id": "1",
+            "history": [{"role": "user", "content": "first"}],
+        },
         config=config,
     )
     graph.invoke(
-        {"query": "second", "conversation_id": "1", "history": [{"role": "user", "content": "first"}, {"role": "assistant", "content": "old reply"}, {"role": "user", "content": "second"}]},
+        {
+            "query": "second",
+            "conversation_id": "1",
+            "history": [
+                {"role": "user", "content": "first"},
+                {"role": "assistant", "content": "old reply"},
+                {"role": "user", "content": "second"},
+            ],
+        },
         config=config,
     )
 
@@ -251,7 +265,9 @@ def test_graph_passes_retrieval_config_to_rag(monkeypatch):
     rag = FakeRAG(rag_result)
     search = FakeSearchService(make_result("q", []))
     gen = FakeGenLLM("the answer")
-    cls = SimpleNamespace(invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.RAG))
+    cls = SimpleNamespace(
+        invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.RAG)
+    )
     monkeypatch.setattr("agent.nodes.get_llms", lambda **kwargs: (gen, cls))
 
     graph = build_agent_graph(rag=rag, search_service=search, checkpointer=InMemorySaver())
@@ -277,7 +293,9 @@ def test_graph_defaults_retrieval_config_from_settings(monkeypatch):
     rag = FakeRAG(make_result("q", docs))
     search = FakeSearchService(make_result("q", []))
     gen = FakeGenLLM("the answer")
-    cls = SimpleNamespace(invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.RAG))
+    cls = SimpleNamespace(
+        invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.RAG)
+    )
     monkeypatch.setattr("agent.nodes.get_llms", lambda **kwargs: (gen, cls))
 
     graph = build_agent_graph(rag=rag, search_service=search, checkpointer=InMemorySaver())
@@ -297,7 +315,9 @@ def test_graph_passes_max_results_to_web_search(monkeypatch):
     rag = FakeRAG(make_result("q", []))
     search = FakeSearchService(make_result("q", []))
     gen = FakeGenLLM("the answer")
-    cls = SimpleNamespace(invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.WEB))
+    cls = SimpleNamespace(
+        invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.WEB)
+    )
     monkeypatch.setattr("agent.nodes.get_llms", lambda **kwargs: (gen, cls))
 
     graph = build_agent_graph(rag=rag, search_service=search, checkpointer=InMemorySaver())
@@ -320,7 +340,9 @@ def test_graph_passes_search_depth_to_web_search(monkeypatch):
     rag = FakeRAG(make_result("q", []))
     search = FakeSearchService(make_result("q", []))
     gen = FakeGenLLM("the answer")
-    cls = SimpleNamespace(invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.WEB))
+    cls = SimpleNamespace(
+        invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.WEB)
+    )
     monkeypatch.setattr("agent.nodes.get_llms", lambda **kwargs: (gen, cls))
 
     graph = build_agent_graph(rag=rag, search_service=search, checkpointer=InMemorySaver())
@@ -343,7 +365,9 @@ def test_graph_defaults_search_depth_to_basic(monkeypatch):
     rag = FakeRAG(make_result("q", []))
     search = FakeSearchService(make_result("q", []))
     gen = FakeGenLLM("the answer")
-    cls = SimpleNamespace(invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.WEB))
+    cls = SimpleNamespace(
+        invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.WEB)
+    )
     monkeypatch.setattr("agent.nodes.get_llms", lambda **kwargs: (gen, cls))
 
     graph = build_agent_graph(rag=rag, search_service=search, checkpointer=InMemorySaver())

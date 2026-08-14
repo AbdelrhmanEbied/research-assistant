@@ -20,11 +20,11 @@ class EmbeddedQuery:
     sparse: models.SparseVector
 
 
-
 class SearchType(Enum):
     DENSE = "dense"
     SPARSE = "sparse"
     HYBRID = "hybrid"
+
 
 @dataclass
 class RetrievedDocuments:
@@ -32,8 +32,8 @@ class RetrievedDocuments:
     metadata: dict
     score: float
 
-@dataclass 
 
+@dataclass
 class Context:
     text: str
     sources: list[dict]
@@ -102,5 +102,3 @@ def build_sources(result: KnowledgeResult) -> list[dict]:
 
         sources.append(entry)
     return sources
-    
-

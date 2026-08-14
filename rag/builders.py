@@ -22,12 +22,10 @@ class ContextBuilder:
         sources = []
 
         for index, document in enumerate(documents, start=1):
-
             lines = [f"[Document {index}]"]
 
             if self.include_metadata:
                 for key, value in document.metadata.items():
-
                     if key in {
                         "chunk_id",
                         "document_id",
@@ -88,6 +86,7 @@ class PromptBuilder:
             raise ValueError(f"Unsupported prompt mode: {mode} (resolved to '{mode_str}')")
 
         return handler(question, context, history)
+
     def _base_prompt(
         self,
         *,
@@ -186,4 +185,3 @@ class PromptBuilder:
             context=context,
             history=history,
         )
-

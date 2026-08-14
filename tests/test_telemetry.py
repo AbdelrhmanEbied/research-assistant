@@ -124,7 +124,9 @@ def test_spans_are_recorded_with_latencies(store, file_config):
         store=store,
     )
     try:
-        with tracker.span("chat_request", span_type="AGENT", latency_metric="agent_latency_ms") as root_span:
+        with tracker.span(
+            "chat_request", span_type="AGENT", latency_metric="agent_latency_ms"
+        ) as root_span:
             assert root_span is not None
             assert root_span.name == "chat_request"
             assert root_span.span_type == "AGENT"
@@ -156,10 +158,12 @@ def test_persistence_failures_do_not_break_the_app(store, file_config, monkeypat
     assert tracker.enabled is True
     assert tracker._store is store
 
-    with pytest.raises(ValueError, match="app code error"):
-        with tracker.span("generate_answer", span_type="LLM", latency_metric="llm_latency_ms"):
-            tracker.add_metric("input_tokens", 1)
-            raise ValueError("app code error")
+    with (
+        pytest.raises(ValueError, match="app code error"),
+        tracker.span("generate_answer", span_type="LLM", latency_metric="llm_latency_ms"),
+    ):
+        tracker.add_metric("input_tokens", 1)
+        raise ValueError("app code error")
 
     tracker.finish(success=False, error_type="ValueError")
     with tracker.timed("agent_latency_ms"):
@@ -175,6 +179,7 @@ def test_request_scope_propagates_and_clears(store, file_config):
             store=store,
         )
         try:
+
             async def nested() -> bool:
                 return get_current_tracker() is tracker
 

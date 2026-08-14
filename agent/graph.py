@@ -8,12 +8,12 @@ from agent.nodes import (
 )
 
 
-def build_agent_graph(rag,search_service,checkpointer):
+def build_agent_graph(rag, search_service, checkpointer):
     graph_builder = StateGraph(AgentState)
 
     graph_builder.add_node("classify_request", classify_request)
     graph_builder.add_node("generate_answer", generate_answer)
-    prepare_prompt = make_prepare_prompt_node(rag,search_service)
+    prepare_prompt = make_prepare_prompt_node(rag, search_service)
     graph_builder.add_node("prepare_prompt", prepare_prompt)
 
     graph_builder.add_edge(START, "classify_request")

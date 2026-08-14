@@ -14,14 +14,14 @@ from langchain_community.document_loaders import (
 from langchain_core.documents import Document
 
 LOADERS = {
-    ".pdf": PyMuPDFLoader,      
+    ".pdf": PyMuPDFLoader,
     ".txt": partial(TextLoader, encoding="utf-8"),
     ".docx": Docx2txtLoader,
     ".csv": CSVLoader,
     ".json": JSONLoader,
     ".html": BSHTMLLoader,
     ".htm": BSHTMLLoader,
-    ".md": UnstructuredMarkdownLoader
+    ".md": UnstructuredMarkdownLoader,
 }
 
 
@@ -29,20 +29,17 @@ class DocumentLoader:
     def __init__(self):
         self.loaders = LOADERS.copy()
 
-    def _load_file(self,path:Path) -> list[Document]:
+    def _load_file(self, path: Path) -> list[Document]:
         suffix = path.suffix.lower()
         loader_cls = self.loaders.get(suffix)
 
         if loader_cls is None:
             supported = ", ".join(sorted(self.loaders))
-            raise ValueError(
-                f"Unsupported file type '{suffix}'. "
-                f"Supported: {supported}"
-            )
+            raise ValueError(f"Unsupported file type '{suffix}'. Supported: {supported}")
         loader = loader_cls(str(path))
 
         return loader.load()
-    
+
     def _load_directory(self, path: Path) -> list[Document]:
         documents = []
 
@@ -69,5 +66,3 @@ class DocumentLoader:
             return self._load_directory(path)
 
         return self._load_file(path)
-
-

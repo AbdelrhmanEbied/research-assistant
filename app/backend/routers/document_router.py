@@ -33,7 +33,7 @@ def get_document_service(
 
 @router.post("/upload")
 async def upload_document(
-    conversation_id: int  = Form(...),
+    conversation_id: int = Form(...),
     file: UploadFile = File(...),  # noqa: B008
     service: DocumentService = Depends(get_document_service),  # noqa: B008
 ):
@@ -79,7 +79,6 @@ def link_documents(
 
     linked = repo.ensure_linked(body.conversation_id, list(requested))
     return {"linked": linked}
-
 
 
 @router.get("/", response_model=list[DocumentDetailResponse])

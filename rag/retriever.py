@@ -8,9 +8,9 @@ from telemetry import get_current_tracker
 
 class Retriever:
     def __init__(
-            self,
-            embedder: DocumentEmbedder,
-            vectorstore:QDrantManager,
+        self,
+        embedder: DocumentEmbedder,
+        vectorstore: QDrantManager,
     ):
 
         self.embedder = embedder
@@ -31,11 +31,11 @@ class Retriever:
         )
 
     def retrieve(
-            self,
-            query:str,
-            limit: int = 5,
-            search_type: SearchType = SearchType.HYBRID,
-            conversation_id: str | None = None,
+        self,
+        query: str,
+        limit: int = 5,
+        search_type: SearchType = SearchType.HYBRID,
+        conversation_id: str | None = None,
     ) -> list[RetrievedDocuments]:
         with get_current_tracker().span(
             "retrieve",
@@ -45,9 +45,9 @@ class Retriever:
             embedded_query = self.embedder.embed_query(query=query)
 
             result = self.vectorstore.search(
-                query= embedded_query,
-                search_type= search_type,
-                limit = limit,
+                query=embedded_query,
+                search_type=search_type,
+                limit=limit,
                 qdrant_filter=self._conversation_filter(conversation_id),
             )
 
@@ -57,11 +57,7 @@ class Retriever:
                 payload = point.payload
 
                 documents.append(
-                    RetrievedDocuments(
-                        text = payload['text'],
-                        metadata = payload,
-                        score = point.score
-                    )
+                    RetrievedDocuments(text=payload["text"], metadata=payload, score=point.score)
                 )
 
             return documents

@@ -9,6 +9,7 @@ class ConversationResponse(BaseModel):
     id: int
     title: str | None
 
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

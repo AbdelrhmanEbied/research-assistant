@@ -11,10 +11,7 @@ class Conversation(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    title: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True
-    )
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -37,7 +34,6 @@ class Conversation(Base):
         back_populates="conversation",
         cascade="all, delete-orphan",
     )
-
 
 
 class Message(Base):
@@ -73,7 +69,6 @@ class Message(Base):
         "Conversation",
         back_populates="messages",
     )
-
 
 
 class Document(Base):

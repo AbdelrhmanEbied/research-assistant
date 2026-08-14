@@ -7,7 +7,6 @@ supported — renaming/dropping is out of scope for this local-first app.
 """
 
 import logging
-from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine

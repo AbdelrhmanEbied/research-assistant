@@ -84,9 +84,7 @@ class DocumentEmbedder:
 
         if len(texts) != len(embeddings):
             raise RuntimeError(
-                "Embedding provider returned "
-                f"{len(embeddings)} embeddings "
-                f"for {len(texts)} texts."
+                f"Embedding provider returned {len(embeddings)} embeddings for {len(texts)} texts."
             )
 
         return embeddings
@@ -95,10 +93,7 @@ class DocumentEmbedder:
         self,
         documents: list[Document],
     ) -> list[EmbeddedDocument]:
-        valid_documents = [
-            doc for doc in documents
-            if doc.page_content.strip()
-        ]
+        valid_documents = [doc for doc in documents if doc.page_content.strip()]
 
         if not valid_documents:
             return []
@@ -117,10 +112,7 @@ class DocumentEmbedder:
             desc="Sparse embedding",
         )
 
-        sparse_vectors = [
-            self._to_sparse_vector(vec)
-            for vec in sparse_embeddings
-        ]
+        sparse_vectors = [self._to_sparse_vector(vec) for vec in sparse_embeddings]
 
         if len(dense_vectors) != len(sparse_vectors):
             raise RuntimeError(
@@ -133,7 +125,7 @@ class DocumentEmbedder:
         default_document_id = str(uuid4())
 
         for index, (doc, dense, sparse) in enumerate(
-            zip(valid_documents, dense_vectors, sparse_vectors)
+            zip(valid_documents, dense_vectors, sparse_vectors, strict=True)
         ):
             metadata = {
                 **doc.metadata,

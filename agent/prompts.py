@@ -22,9 +22,6 @@ Rules:
 """
 
 
-
-
-
 SYSTEM_PROMPT = """
 You are an expert AI research assistant.
 

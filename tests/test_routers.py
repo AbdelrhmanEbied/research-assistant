@@ -10,8 +10,10 @@ from sqlalchemy.pool import StaticPool
 from app.backend.database.base import Base
 from app.backend.database.database import get_db
 from app.backend.database.models import Conversation, ConversationDocument, Document, Message
-from app.backend.routers.chat_router import get_chat_service, router as chat_router
-from app.backend.routers.document_router import get_document_service, router as document_router
+from app.backend.routers.chat_router import get_chat_service
+from app.backend.routers.chat_router import router as chat_router
+from app.backend.routers.document_router import get_document_service
+from app.backend.routers.document_router import router as document_router
 
 
 @pytest.fixture
@@ -213,11 +215,7 @@ def test_document_list_by_conversation(db_session):
     db_session.add(doc)
     db_session.commit()
 
-    from app.backend.database.models import ConversationDocument
-
-    db_session.add(
-        ConversationDocument(conversation_id=conversation.id, document_id=doc.id)
-    )
+    db_session.add(ConversationDocument(conversation_id=conversation.id, document_id=doc.id))
     db_session.commit()
 
     with TestClient(app) as client:
@@ -243,12 +241,8 @@ def test_conversation_search_by_title_and_content(db_session):
     db_session.add_all([conv_a, conv_b])
     db_session.commit()
 
-    db_session.add(
-        Message(conversation_id=conv_a.id, role="user", content="Tell me about qubits")
-    )
-    db_session.add(
-        Message(conversation_id=conv_b.id, role="user", content="How do I make pasta?")
-    )
+    db_session.add(Message(conversation_id=conv_a.id, role="user", content="Tell me about qubits"))
+    db_session.add(Message(conversation_id=conv_b.id, role="user", content="How do I make pasta?"))
     db_session.commit()
 
     with TestClient(app) as client:

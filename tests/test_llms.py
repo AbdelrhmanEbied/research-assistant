@@ -57,9 +57,7 @@ def test_extract_usage_tokens_gemini_style():
 
 
 def test_extract_usage_tokens_openai_style():
-    response = SimpleNamespace(
-        usage_metadata={"prompt_tokens": 20, "completion_tokens": 7}
-    )
+    response = SimpleNamespace(usage_metadata={"prompt_tokens": 20, "completion_tokens": 7})
     assert extract_usage_tokens(response) == {
         "input_tokens": 20,
         "output_tokens": 7,

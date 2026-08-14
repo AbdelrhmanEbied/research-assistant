@@ -16,9 +16,8 @@ class ConversationRepository:
         self.db = db
 
     def create(
-            self,
-            title: str | None = None,
-
+        self,
+        title: str | None = None,
     ) -> Conversation:
         conversation = Conversation(title=title)
 
@@ -27,40 +26,30 @@ class ConversationRepository:
         self.db.refresh(conversation)
         return conversation
 
-    def get_by_id(
-            self,
-            conversation_id: int
-    ) -> Conversation | None:
-        return self.db.get(Conversation,conversation_id)
+    def get_by_id(self, conversation_id: int) -> Conversation | None:
+        return self.db.get(Conversation, conversation_id)
 
     def delete(
-            self,
-            conversation_id: int,
+        self,
+        conversation_id: int,
     ) -> bool:
         conversation = self.get_by_id(conversation_id)
 
         if conversation is None:
             return False
-        
+
         self.db.delete(conversation)
 
         self.db.commit()
         return True
 
     def list_all(self) -> list[Conversation]:
-        return(
-            self.db.query(Conversation)
-            .order_by(Conversation.updated_at.desc())
-            .all()
-        )
+        return self.db.query(Conversation).order_by(Conversation.updated_at.desc()).all()
 
     def search(self, query: str) -> list[Conversation]:
         """Find conversations by title or message content (lightweight LIKE)."""
         like = f"%{query.strip()}%"
-        matching_ids = (
-            self.db.query(Message.conversation_id)
-            .filter(Message.content.ilike(like))
-        )
+        matching_ids = self.db.query(Message.conversation_id).filter(Message.content.ilike(like))
         return (
             self.db.query(Conversation)
             .filter(
@@ -73,20 +62,13 @@ class ConversationRepository:
             .all()
         )
 
-    def touch(
-            self,
-            conversation:Conversation
-    ) -> Conversation:
+    def touch(self, conversation: Conversation) -> Conversation:
         self.db.add(conversation)
         self.db.commit()
         self.db.refresh(conversation)
         return conversation
 
-    def update_title(
-        self,
-        conversation_id: int,
-        title: str 
-    ):
+    def update_title(self, conversation_id: int, title: str):
         conversation = self.get_by_id(conversation_id=conversation_id)
 
         if conversation is None:
@@ -97,28 +79,26 @@ class ConversationRepository:
         self.db.refresh(conversation)
         return conversation
 
+
 class MessageRepository:
-    def __init__(
-            self,
-            db:Session
-    ):
+    def __init__(self, db: Session):
         self.db = db
 
     def add_message(
-            self,
-            conversation_id : int,
-            role: str,
-            content: str,
+        self,
+        conversation_id: int,
+        role: str,
+        content: str,
     ) -> Message:
 
         message = Message(
-            conversation_id = conversation_id,
-            role = role,
-            content = content,
+            conversation_id=conversation_id,
+            role=role,
+            content=content,
         )
         self.db.add(message)
 
-        conversation = self.db.get(Conversation,conversation_id)
+        conversation = self.db.get(Conversation, conversation_id)
 
         if conversation is not None:
             conversation.updated_at = datetime.now(tz=UTC)
@@ -130,10 +110,10 @@ class MessageRepository:
         return message
 
     def list_by_conversation(
-            self,
-            conversation_id: int,
-            limit: int | None = None,
-            offset: int = 0,
+        self,
+        conversation_id: int,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Message]:
         """Return messages newest-first (page 0 = latest messages)."""
         query = (
@@ -149,8 +129,8 @@ class MessageRepository:
         return query.all()
 
     def list_for_history(
-            self,
-            conversation_id: int,
+        self,
+        conversation_id: int,
     ) -> list[Message]:
         """Return messages oldest-first, as required for LLM context."""
         return (
@@ -161,14 +141,10 @@ class MessageRepository:
         )
 
     def count_by_conversation(
-            self,
-            conversation_id: int,
+        self,
+        conversation_id: int,
     ) -> int:
-        return (
-            self.db.query(Message)
-            .filter(Message.conversation_id == conversation_id)
-            .count()
-        )
+        return self.db.query(Message).filter(Message.conversation_id == conversation_id).count()
 
     def get_by_id(self, message_id: int) -> Message | None:
         return self.db.get(Message, message_id)
@@ -195,10 +171,10 @@ class MessageRepository:
         return deleted_count
 
     def delete_by_conversation(
-            self,
-            conversation_id: int,
+        self,
+        conversation_id: int,
     ) -> int:
-        
+
         deleted_count = (
             self.db.query(Message)
             .filter(Message.conversation_id == conversation_id)
@@ -208,9 +184,9 @@ class MessageRepository:
         return deleted_count
 
     def update_metadata(
-            self,
-            message_id: int,
-            metadata: dict | None,
+        self,
+        message_id: int,
+        metadata: dict | None,
     ) -> Message | None:
         message = self.db.get(Message, message_id)
         if message is None:
@@ -219,7 +195,6 @@ class MessageRepository:
         self.db.commit()
         self.db.refresh(message)
         return message
-
 
 
 class DocumentRepository:
@@ -244,18 +219,12 @@ class DocumentRepository:
         return self.db.get(Document, document_id)
 
     def list_all(self) -> list[Document]:
-        return (
-            self.db.query(Document)
-            .order_by(Document.id.desc())
-            .all()
-        )
+        return self.db.query(Document).order_by(Document.id.desc()).all()
 
     def list_all_with_conversations(self) -> list[Document]:
         return (
             self.db.query(Document)
-            .options(
-                joinedload(Document.links).joinedload(ConversationDocument.conversation)
-            )
+            .options(joinedload(Document.links).joinedload(ConversationDocument.conversation))
             .order_by(Document.id.desc())
             .all()
         )
@@ -304,7 +273,6 @@ class DocumentRepository:
         if document is None:
             return False
 
-
         self.db.query(ConversationDocument).filter(
             ConversationDocument.document_id == document_id
         ).delete(synchronize_session=False)
@@ -312,7 +280,3 @@ class DocumentRepository:
         self.db.delete(document)
         self.db.commit()
         return True
-
-
-
-    

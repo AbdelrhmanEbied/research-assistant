@@ -42,7 +42,7 @@ class Reranker:
             )
 
             ranked = sorted(
-                zip(documents, results),
+                zip(documents, results, strict=True),
                 key=lambda x: x[1],
                 reverse=True,
             )

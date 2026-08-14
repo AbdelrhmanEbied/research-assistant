@@ -62,7 +62,14 @@ def test_context_builder_skips_internal_keys():
     context = ContextBuilder().build(docs)
 
     assert "x.pdf" in context.text
-    for key in ("document_id", "chunk_id", "created_at", "conversation_id", "chunk_index", "total_chunks"):
+    for key in (
+        "document_id",
+        "chunk_id",
+        "created_at",
+        "conversation_id",
+        "chunk_index",
+        "total_chunks",
+    ):
         assert key not in context.text
 
 

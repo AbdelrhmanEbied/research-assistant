@@ -19,7 +19,6 @@ class KnowledgeSource(Enum):
     WEB = "web"
 
 
-
 class RouteQuery(BaseModel):
     mode: PromptMode = Field(
         description="""
@@ -42,9 +41,12 @@ class RouteQuery(BaseModel):
         - WEB: Request requires live or internet-based information.
         """
     )
+
+
 class ChatMessage(TypedDict):
     role: Literal["user", "assistant"]
     content: str
+
 
 def replace_history(
     _current: list[ChatMessage],
@@ -59,6 +61,7 @@ def replace_history(
     """
     return new
 
+
 class AgentState(TypedDict):
     history: Annotated[list[ChatMessage], replace_history]
     query: str
@@ -72,4 +75,3 @@ class AgentState(TypedDict):
     mode_override: str | None
     source_override: str | None
     retrieval_config: dict | None
-

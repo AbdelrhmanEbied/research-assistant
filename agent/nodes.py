@@ -66,10 +66,12 @@ def classify_request(state: AgentState):
         tracker = get_current_tracker()
 
         with tracker.span("classify_request", span_type="CLASSIFIER"):
-            result: RouteQuery = classifier_llm.invoke([
-                {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
-                {"role": "user", "content": query},
-            ])
+            result: RouteQuery = classifier_llm.invoke(
+                [
+                    {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
+                    {"role": "user", "content": query},
+                ]
+            )
         mode = mode or result.mode
         source = source or result.source
 
@@ -115,9 +117,7 @@ def make_prepare_prompt_node(rag, search_service):
 
             history = state.get("history", [])
 
-            retrieval_config = _resolve_retrieval_config(
-                state.get("retrieval_config") or {}
-            )
+            retrieval_config = _resolve_retrieval_config(state.get("retrieval_config") or {})
 
             if source == KnowledgeSource.WEB:
                 knowledge_result = search_service.search(
