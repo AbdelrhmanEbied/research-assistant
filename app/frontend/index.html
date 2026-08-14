@@ -197,6 +197,10 @@
       </select>
       <button class="advanced-btn" id="advancedBtn" type="button">Retrieval</button>
       <button class="advanced-btn" id="compareBtn" type="button">Compare docs</button>
+      <div class="mode-toggle" role="group" aria-label="Response mode">
+        <button type="button" class="mode-toggle-btn active" data-mode="fast">Fast</button>
+        <button type="button" class="mode-toggle-btn" data-mode="thinking">Thinking</button>
+      </div>
     </div>
     <div class="advanced-popover" id="advancedPopover" hidden>
       <div class="model-field">
@@ -230,11 +234,9 @@
       </button>
       <input type="file" id="fileInput" hidden>
       <textarea id="input" rows="1" placeholder="How can I help you today?"></textarea>
-      <button class="send-btn" id="stopBtn" title="Stop generating" aria-label="Stop generating" hidden>
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-      </button>
       <button class="send-btn" id="sendBtn" title="Send" aria-label="Send message" disabled>
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+        <svg class="ico send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+        <svg class="ico stop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
     </div>
     <div class="hint">Documents you attach get indexed into this conversation's knowledge base.</div>

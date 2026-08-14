@@ -1,7 +1,20 @@
 import { dom, state, EMPTY_STATE_HTML } from './state.js';
-import { escapeHtml, fmtMs, fmtNum, hasGSAP, reduceMotion, SOURCES_MARKER, DETAILS_MARKER, ERROR_MARKER } from './utils.js';
+import { escapeHtml, fmtMs, fmtNum, hasGSAP, reduceMotion, SOURCES_MARKER, DETAILS_MARKER, ERROR_MARKER, THINKING_MARKER } from './utils.js';
 import { setContent, typesetMath } from './markdown.js';
 import { initHeroAnimation, stopHeroBeatLoop } from './motion.js';
+
+function splitThinking(text) {
+  const parts = String(text).split(THINKING_MARKER);
+  if (parts.length <= 1) return { text, thinking: null };
+  const thinking = parts.slice(0, -1)
+    .map(s => s.replace(/^\n+/, '').replace(/\n+$/, ''))
+    .filter(Boolean)
+    .join('\n\n');
+  return {
+    text: parts[parts.length - 1].replace(/^\n+/, ''),
+    thinking: thinking || null,
+  };
+}
 
 export function parseTail(raw) {
   let text = raw;
@@ -13,8 +26,10 @@ export function parseTail(raw) {
   if (errIdx !== -1) {
     text = raw.slice(0, errIdx);
     try { error = JSON.parse(raw.slice(errIdx + ERROR_MARKER.length).trim()); } catch (_) {}
+    const split = splitThinking(text);
     return {
-      text: text.replace(/[\s\n]+$/, ''),
+      text: split.text.replace(/[\s\n]+$/, ''),
+      thinking: split.thinking,
       sources: null,
       details: null,
       error: (error && typeof error === 'object') ? error : null,
@@ -33,8 +48,10 @@ export function parseTail(raw) {
     text = text.slice(0, srcIdx);
   }
 
+  const split = splitThinking(text);
   return {
-    text: text.replace(/[\s\n]+$/, ''),
+    text: split.text.replace(/[\s\n]+$/, ''),
+    thinking: split.thinking,
     sources: Array.isArray(sources) ? sources : null,
     details: (details && typeof details === 'object') ? details : null,
     error: null,
@@ -175,6 +192,43 @@ export function renderDetails(el, details) {
 
   panel.innerHTML = html;
   el.appendChild(panel);
+}
+
+export function createThinkingPanel(row) {
+  let panel = row.querySelector('.thinking-panel');
+  if (panel) return panel;
+
+  panel = document.createElement('div');
+  panel.className = 'thinking-panel open';
+
+  const head = document.createElement('button');
+  head.className = 'thinking-head';
+  head.type = 'button';
+  head.setAttribute('aria-expanded', 'true');
+  head.innerHTML = '<span class="thinking-spark" aria-hidden="true"></span><span class="thinking-label">Thinking</span><span class="thinking-chev" aria-hidden="true">›</span>';
+
+  const body = document.createElement('div');
+  body.className = 'thinking-body';
+  body.textContent = 'Thinking…';
+
+  head.addEventListener('click', () => {
+    const open = panel.classList.toggle('open');
+    body.hidden = !open;
+    head.setAttribute('aria-expanded', String(open));
+  });
+
+  panel.appendChild(head);
+  panel.appendChild(body);
+
+  const inner = row.querySelector('.row-inner') || row;
+  row.insertBefore(panel, inner);
+  return panel;
+}
+
+export function setThinkingText(panel, text) {
+  if (!panel) return;
+  const body = panel.querySelector('.thinking-body');
+  body.textContent = text && text.trim() ? text : 'Thinking…';
 }
 
 export function createMessageRow(role, text) {
@@ -357,6 +411,11 @@ export function attachMessageExtras(contentEl, extra, { last = false } = {}) {
   const row = contentEl.closest('.row');
   const sources = extra && extra.sources;
   const details = extra && extra.details;
+  const thinking = extra && extra.thinking;
+  if (thinking) {
+    const panel = createThinkingPanel(row);
+    setThinkingText(panel, thinking);
+  }
   if (sources) renderSources(contentEl, sources);
   if (last) renderMessageActions(row, { details, stopped: false });
 }

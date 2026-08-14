@@ -15,6 +15,9 @@ export const hasCharts = typeof Chart !== 'undefined';
 export const SOURCES_MARKER = '@@RESEARCH_SOURCES@@';
 export const DETAILS_MARKER = '@@RESEARCH_DETAILS@@';
 export const ERROR_MARKER = '@@RESEARCH_ERROR@@';
+// thinking-mode segments are terminated with this marker; everything before
+// the last marker is thinking, everything after it is the final answer
+export const THINKING_MARKER = '@@RESEARCH_THINKING@@';
 
 // icons built in JS, the rest are inline in the markup
 export const ICON_X = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';

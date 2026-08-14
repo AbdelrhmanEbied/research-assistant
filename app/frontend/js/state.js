@@ -6,7 +6,6 @@ export const dom = {
   convList: document.getElementById('convList'),
   input: document.getElementById('input'),
   sendBtn: document.getElementById('sendBtn'),
-  stopBtn: document.getElementById('stopBtn'),
   newChatBtn: document.getElementById('newChatBtn'),
   mainHeader: document.getElementById('mainHeader'),
   headerActions: document.getElementById('headerActions'),
@@ -30,4 +29,5 @@ export const state = {
   // breaks for any other reason is not a user stop
   userStopped: false,
   pendingMode: null,
+  agentMode: 'fast',
 };
