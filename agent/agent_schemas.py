@@ -75,3 +75,5 @@ class AgentState(TypedDict):
     mode_override: str | None
     source_override: str | None
     retrieval_config: dict | None
+    agent_mode: str | None
+    messages: list

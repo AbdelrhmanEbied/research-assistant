@@ -1,11 +1,14 @@
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+
 from agent.agent_schemas import AgentState, KnowledgeSource, PromptMode, RouteQuery
 from agent.llms import (
     extract_llm_text,
     extract_usage_tokens,
     get_llms,
     get_request_api_key,
+    thinking_call_kwargs,
 )
-from agent.prompts import CLASSIFIER_SYSTEM_PROMPT
+from agent.prompts import CLASSIFIER_SYSTEM_PROMPT, THINKING_SYSTEM_PROMPT
 from rag.rag_schemas import SearchType, build_sources
 from settings import get_settings_store
 from telemetry import get_current_tracker
@@ -85,6 +88,7 @@ def classify_request(state: AgentState):
     return {
         "mode": mode,
         "source": source,
+        "messages": [],
     }
 
 
@@ -198,10 +202,12 @@ def generate_answer(state: AgentState):
     tracker = get_current_tracker()
 
     prompt = state["knowledge_result"].prompt
+    cfg = _llm_config(state)
     llm, _ = _request_llms(state)
+    thinking_kwargs = thinking_call_kwargs("fast", cfg.get("model"), cfg.get("model_provider"))
 
     with tracker.span("generate_answer", span_type="LLM", latency_metric="llm_latency_ms"):
-        response = llm.invoke(prompt)
+        response = llm.invoke(prompt, **thinking_kwargs)
 
     text = extract_llm_text(response)
 
@@ -220,3 +226,111 @@ def generate_answer(state: AgentState):
     return {
         "response": text,
     }
+
+
+def _record_token_metrics(tracker, prompt_text: str, text: str, response) -> None:
+    tokens = extract_usage_tokens(response)
+    if tokens is not None:
+        tracker.add_metric("input_tokens", tokens["input_tokens"])
+        tracker.add_metric("output_tokens", tokens["output_tokens"])
+        tracker.add_metric("total_tokens", tokens["total_tokens"])
+        return
+
+    estimated = estimate_token_counts(prompt_text, text)
+    if estimated is not None:
+        tracker.add_metric("input_tokens", estimated[0])
+        tracker.add_metric("output_tokens", estimated[1])
+        tracker.add_metric("total_tokens", estimated[2])
+
+
+def route_by_agent_mode(state: AgentState) -> str:
+    """Send the request down the fast or thinking path after the prompt."""
+    mode = state.get("agent_mode") or "fast"
+    return "thinking" if mode == "thinking" else "fast"
+
+
+def make_agent_reason_node(tools):
+    def agent_reason(state: AgentState):
+        """One thinking-mode generation step: model may emit tool calls."""
+        tracker = get_current_tracker()
+
+        cfg = _llm_config(state)
+        llm, _ = _request_llms(state)
+        llm_with_tools = llm.bind_tools(tools)
+        thinking_kwargs = thinking_call_kwargs(
+            "thinking", cfg.get("model"), cfg.get("model_provider")
+        )
+
+        messages = state.get("messages") or []
+        system = ""
+
+        if not messages:
+            knowledge_result = state.get("knowledge_result")
+            context = knowledge_result.context.text if knowledge_result else ""
+            history = state.get("history", [])
+
+            system = THINKING_SYSTEM_PROMPT
+            if context:
+                system += f"\n\nRetrieved Context:\n{context}"
+            if history:
+                history_text = "\n".join(
+                    f"{message['role']}: {message['content']}" for message in history
+                )
+                system += f"\n\nConversation History:\n{history_text}"
+
+            messages = [
+                SystemMessage(content=system),
+                HumanMessage(content=state["query"]),
+            ]
+
+        with tracker.span("agent_reason", span_type="LLM", latency_metric="llm_latency_ms"):
+            response = llm_with_tools.invoke(messages, **thinking_kwargs)
+
+        text = extract_llm_text(response)
+        _record_token_metrics(
+            tracker, system or " ".join(str(m.content) for m in messages[:2]), text, response
+        )
+
+        return {"messages": messages + [response]}
+
+    return agent_reason
+
+
+def make_execute_tools_node(tools):
+    def execute_tools(state: AgentState):
+        """Run the last message's tool calls manually and append ``ToolMessage``s."""
+        messages = state.get("messages") or []
+        last = messages[-1]
+        tool_map = {tool.name: tool for tool in tools}
+        outputs = []
+
+        for call in last.tool_calls:
+            tool = tool_map.get(call["name"])
+            if tool is None:
+                outputs.append(
+                    ToolMessage(
+                        content=f"Unknown tool: {call['name']}",
+                        tool_call_id=call["id"],
+                    )
+                )
+                continue
+            try:
+                result = tool.invoke(call.get("args") or {})
+            except Exception as exc:
+                result = f"Tool error: {exc}"
+            outputs.append(ToolMessage(content=str(result), tool_call_id=call["id"]))
+
+        return {"messages": messages + outputs}
+
+    return execute_tools
+
+
+def finalize_answer(state: AgentState):
+    """Extract the final ``AIMessage`` text from the thinking message list."""
+    messages = state.get("messages") or []
+    text = ""
+    for message in reversed(messages):
+        if isinstance(message, AIMessage):
+            text = extract_llm_text(message)
+            break
+    return {"response": text}

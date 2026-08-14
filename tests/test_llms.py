@@ -2,7 +2,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from agent.llms import extract_llm_text, extract_usage_tokens, get_llms
+from agent.llms import (
+    extract_llm_text,
+    extract_usage_tokens,
+    get_llms,
+    thinking_call_kwargs,
+)
 from settings import reset_settings_store
 
 
@@ -108,3 +113,20 @@ def test_get_llms_falls_back_to_defaults(monkeypatch):
 
     get_llms(model="custom", api_key="custom-key")
     assert built[-1] == ("custom", "google_genai", "custom-key")
+
+
+def test_thinking_call_kwargs_gemini_3_thinking_mode():
+    kwargs = thinking_call_kwargs("thinking", "gemini-3.5-flash-lite", "google_genai")
+    assert kwargs == {"thinking_level": "high", "include_thoughts": True}
+
+
+def test_thinking_call_kwargs_gemini_3_fast_mode():
+    kwargs = thinking_call_kwargs("fast", "gemini-3.5-flash-lite", "google_genai")
+    assert kwargs == {"thinking_level": "minimal"}
+
+
+def test_thinking_call_kwargs_ignores_non_gemini_3_models():
+    assert thinking_call_kwargs("thinking", "gemini-2.5-flash", "google_genai") == {}
+    assert thinking_call_kwargs("thinking", "gemini-3.5-flash-lite", "openai") == {}
+    assert thinking_call_kwargs("thinking", "some-model", "anthropic") == {}
+    assert thinking_call_kwargs("thinking", None, "google_genai") == {}

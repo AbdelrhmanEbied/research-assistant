@@ -3,7 +3,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from langchain_core.messages import AIMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -14,11 +14,12 @@ from agent.llms import get_request_api_key
 from app.backend.database.base import Base
 from app.backend.database.models import Conversation
 from app.backend.database.repositories import MessageRepository
-from app.backend.schemas.chat import ChatRequest, LLMConfig, RegenerateRequest
+from app.backend.schemas.chat import AgentMode, ChatRequest, LLMConfig, RegenerateRequest
 from app.backend.services.chat_service import (
     DETAILS_MARKER,
     ERROR_MARKER,
     SOURCES_MARKER,
+    THINKING_MARKER,
     ChatService,
 )
 
@@ -85,6 +86,102 @@ class FailingGraph(FakeGraph):
         if False:  # pragma: no cover - makes this an async generator
             yield
         raise RuntimeError("boom")
+
+
+class ThinkingFakeGraph(FakeGraph):
+    """Streams a Gemini-style thinking turn (tool call), tool status, then the final answer.
+
+    Mirrors the real Gemini 3.5 stream: the reasoning turn carries thought
+    content as ``{"type": "thinking"}`` blocks and ends in a tool call; the
+    final answer turn is plain text blocks.
+    """
+
+    async def astream_events(self, state, config=None, version="v2"):
+        self.received_state = state
+        yield {
+            "event": "on_chat_model_stream",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {
+                "chunk": AIMessageChunk(content=[{"type": "thinking", "thinking": "Hmm, let"}])
+            },
+        }
+        yield {
+            "event": "on_chat_model_stream",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {
+                "chunk": AIMessageChunk(content=[{"type": "thinking", "thinking": " me think"}])
+            },
+        }
+        yield {
+            "event": "on_chat_model_end",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {
+                "output": AIMessage(
+                    content=[{"type": "thinking", "thinking": "Hmm, let me think"}],
+                    tool_calls=[
+                        {
+                            "name": "calculator",
+                            "args": {"expression": "2 + 2"},
+                            "id": "call_1",
+                            "type": "tool_call",
+                        }
+                    ],
+                )
+            },
+        }
+        yield {
+            "event": "on_tool_start",
+            "name": "calculator",
+            "metadata": {"langgraph_node": "execute_tools"},
+            "data": {"input": {"expression": "2 + 2"}},
+        }
+        yield {
+            "event": "on_chat_model_stream",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {"chunk": AIMessageChunk(content=[{"type": "text", "text": "answer "}])},
+        }
+        yield {
+            "event": "on_chat_model_stream",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {"chunk": AIMessageChunk(content=[{"type": "text", "text": "here"}])},
+        }
+        yield {
+            "event": "on_chat_model_end",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {"output": AIMessage(content=[{"type": "text", "text": "answer here"}])},
+        }
+        yield {
+            "event": "on_chain_end",
+            "metadata": {"langgraph_node": "prepare_prompt"},
+            "data": {"output": {"sources": self.sources}},
+        }
+
+
+class NoThoughtsGraph(FakeGraph):
+    """A model that never exposes thinking blocks (e.g. non-Gemini provider)."""
+
+    async def astream_events(self, state, config=None, version="v2"):
+        self.received_state = state
+        yield {
+            "event": "on_chat_model_stream",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {"chunk": AIMessageChunk(content=[{"type": "text", "text": "answer "}])},
+        }
+        yield {
+            "event": "on_chat_model_stream",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {"chunk": AIMessageChunk(content=[{"type": "text", "text": "here"}])},
+        }
+        yield {
+            "event": "on_chat_model_end",
+            "metadata": {"langgraph_node": "agent_reason"},
+            "data": {"output": AIMessage(content=[{"type": "text", "text": "answer here"}])},
+        }
+        yield {
+            "event": "on_chain_end",
+            "metadata": {"langgraph_node": "prepare_prompt"},
+            "data": {"output": {"sources": self.sources}},
+        }
 
 
 def test_stream_yields_answer_and_sources_marker(session_factory, monkeypatch):
@@ -430,3 +527,112 @@ def test_generate_title_rejects_placeholder_output(monkeypatch):
 
     # a real title is kept
     assert asyncio.run(_run("Greeting")) == "Greeting"
+
+
+def test_stream_thinking_emits_marker_and_answer_only(session_factory, monkeypatch):
+    monkeypatch.setattr(cs, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        cs,
+        "get_llms",
+        lambda **kwargs: (SimpleNamespace(model="fake"), SimpleNamespace()),
+    )
+
+    graph = ThinkingFakeGraph([])
+    service = ChatService(graph=graph, rag=None)
+
+    async def _run():
+        chunks = []
+        async for chunk in service.stream(
+            ChatRequest(query="q", conversation_id=1, agent_mode=AgentMode.THINKING)
+        ):
+            chunks.append(chunk)
+        return chunks
+
+    text = "".join(asyncio.run(_run()))
+
+    assert text.count(THINKING_MARKER) == 3  # 2 thought chunks + 1 tool status
+    # thinking text precedes the last marker; the answer follows it
+    marker_idx = text.rindex(THINKING_MARKER)
+    assert "Hmm, let" in text[:marker_idx]
+    assert "me think" in text[:marker_idx]
+    assert "Calling calculator..." in text[:marker_idx]
+    assert "Hmm, let" not in text[marker_idx:]
+    assert "answer here" in text[marker_idx:]
+    assert "answer here" not in text[:marker_idx]
+
+    # agent_mode reached the graph state
+    assert graph.received_state["agent_mode"] == "thinking"
+
+
+def test_stream_thinking_persists_thinking_and_details(session_factory, monkeypatch):
+    monkeypatch.setattr(cs, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        cs,
+        "get_llms",
+        lambda **kwargs: (SimpleNamespace(model="fake"), SimpleNamespace()),
+    )
+
+    graph = ThinkingFakeGraph([])
+    service = ChatService(graph=graph, rag=None)
+
+    async def _run():
+        async for _ in service.stream(
+            ChatRequest(query="q", conversation_id=1, agent_mode=AgentMode.THINKING)
+        ):
+            pass
+
+    asyncio.run(_run())
+
+    remaining = _messages(session_factory, 1)
+    assistant = remaining[-1]
+    assert assistant["content"] == "answer here"
+    assert assistant["extra"]["thinking"] == "Hmm, let me think\n\nCalling calculator..."
+    assert assistant["extra"]["details"]["agent_mode"] == "thinking"
+
+
+def test_stream_thinking_without_thoughts_skips_thinking_section(session_factory, monkeypatch):
+    """A model that exposes no thought blocks streams the answer with no markers."""
+    monkeypatch.setattr(cs, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        cs,
+        "get_llms",
+        lambda **kwargs: (SimpleNamespace(model="fake"), SimpleNamespace()),
+    )
+
+    graph = NoThoughtsGraph([])
+    service = ChatService(graph=graph, rag=None)
+
+    async def _run():
+        chunks = []
+        async for chunk in service.stream(
+            ChatRequest(query="q", conversation_id=1, agent_mode=AgentMode.THINKING)
+        ):
+            chunks.append(chunk)
+        return chunks
+
+    text = "".join(asyncio.run(_run()))
+    assert THINKING_MARKER not in text
+    assert text[: text.index(DETAILS_MARKER)].rstrip() == "answer here"
+
+
+def test_stream_fast_mode_never_emits_thinking_marker(session_factory, monkeypatch):
+    monkeypatch.setattr(cs, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        cs,
+        "get_llms",
+        lambda **kwargs: (SimpleNamespace(model="fake"), SimpleNamespace()),
+    )
+
+    graph = FakeGraph([])
+    service = ChatService(graph=graph, rag=None)
+
+    async def _run():
+        chunks = []
+        async for chunk in service.stream(ChatRequest(query="q", conversation_id=1)):
+            chunks.append(chunk)
+        return chunks
+
+    text = "".join(asyncio.run(_run()))
+    assert THINKING_MARKER not in text
+    assert text[: text.index(DETAILS_MARKER)].rstrip() == "answer here"
+    assert graph.received_state["agent_mode"] is None

@@ -17,6 +17,11 @@ class ModeOverride(StrEnum):
     EXPLAIN = "explain"
 
 
+class AgentMode(StrEnum):
+    FAST = "fast"
+    THINKING = "thinking"
+
+
 class SourceOverride(StrEnum):
     AUTO = "auto"
     DOCUMENTS = "documents"
@@ -44,6 +49,7 @@ class ChatRequest(BaseModel):
     mode: ModeOverride | None = None
     source: SourceOverride | None = None
     retrieval: RetrievalConfig | None = None
+    agent_mode: AgentMode | None = None
 
 
 class RegenerateRequest(BaseModel):
@@ -52,3 +58,4 @@ class RegenerateRequest(BaseModel):
     mode: ModeOverride | None = None
     source: SourceOverride | None = None
     retrieval: RetrievalConfig | None = None
+    agent_mode: AgentMode | None = None

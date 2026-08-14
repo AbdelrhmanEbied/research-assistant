@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 from agent.agent_schemas import KnowledgeSource, PromptMode, RouteQuery
 from agent.graph import build_agent_graph
@@ -54,10 +56,46 @@ class FakeGenLLM:
     def __init__(self, answer):
         self.answer = answer
         self.last_prompt = None
+        self.last_kwargs = None
 
-    def invoke(self, prompt):
+    def invoke(self, prompt, **kwargs):
         self.last_prompt = prompt
+        self.last_kwargs = kwargs
         return SimpleNamespace(content=self.answer, usage_metadata=None)
+
+
+class ThinkingGenLLM:
+    """Scripted generation LLM that supports ``bind_tools`` and tool loops."""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+        self.last_messages = None
+        self.last_kwargs = None
+        self.bound = False
+
+    def bind_tools(self, tools, **kwargs):
+        self.bound = True
+        return self
+
+    def invoke(self, messages, **kwargs):
+        self.last_messages = messages
+        self.last_kwargs = kwargs
+        response = self.responses[self.calls]
+        self.calls += 1
+        return response
+
+
+def make_thinking_graph(monkeypatch, responses):
+    rag = FakeRAG(make_result("q", []))
+    search = FakeSearchService(make_result("q", []))
+    cls = SimpleNamespace(
+        invoke=lambda msgs: RouteQuery(mode=PromptMode.CHAT, source=KnowledgeSource.NONE)
+    )
+    gen = ThinkingGenLLM(responses)
+    monkeypatch.setattr("agent.nodes.get_llms", lambda **kwargs: (gen, cls))
+    graph = build_agent_graph(rag=rag, search_service=search, checkpointer=InMemorySaver())
+    return graph, gen
 
 
 def make_graph(monkeypatch, *, source, docs, search_calls_expected, gen_answer="the answer"):
@@ -379,3 +417,194 @@ def test_graph_defaults_search_depth_to_basic(monkeypatch):
 
     search_kwargs = search.calls[0]
     assert search_kwargs["search_depth"] == "basic"
+
+
+def _tool_call(name, args, call_id):
+    return AIMessage(
+        content="",
+        tool_calls=[{"name": name, "args": args, "id": call_id, "type": "tool_call"}],
+    )
+
+
+def test_thinking_mode_runs_tool_loop_then_final_answer(monkeypatch):
+    graph, gen = make_thinking_graph(
+        monkeypatch,
+        [
+            _tool_call("calculator", {"expression": "2 + 2"}, "call_1"),
+            AIMessage(content="the answer"),
+        ],
+    )
+
+    result = graph.invoke(
+        {
+            "query": "q",
+            "conversation_id": "1",
+            "history": [],
+            "agent_mode": "thinking",
+        },
+        config={"configurable": {"thread_id": "1"}},
+    )
+
+    assert result["response"] == "the answer"
+    assert gen.calls == 2
+    assert gen.bound is True
+    # the calculator tool actually executed inside the graph loop
+    assert any(getattr(m, "content", None) == "4" for m in result["messages"])
+    # the second reason step saw the tool result before answering
+    assert any(isinstance(m, ToolMessage) for m in gen.last_messages)
+
+
+def test_thinking_mode_messages_reset_across_invocations(monkeypatch):
+    graph, gen = make_thinking_graph(
+        monkeypatch,
+        [
+            _tool_call("calculator", {"expression": "3 * 3"}, "call_1"),
+            AIMessage(content="first answer"),
+            AIMessage(content="second answer"),
+        ],
+    )
+    config = {"configurable": {"thread_id": "1"}}
+
+    first = graph.invoke(
+        {
+            "query": "q1",
+            "conversation_id": "1",
+            "history": [],
+            "agent_mode": "thinking",
+        },
+        config=config,
+    )
+    assert "9" in [getattr(m, "content", "") for m in first["messages"]]
+
+    second = graph.invoke(
+        {
+            "query": "q2",
+            "conversation_id": "1",
+            "history": [
+                {"role": "user", "content": "q1"},
+                {"role": "assistant", "content": "first answer"},
+            ],
+            "agent_mode": "thinking",
+        },
+        config=config,
+    )
+
+    assert second["response"] == "second answer"
+    # classify_request wiped the previous turn's message list, so no stale
+    # tool result leaks into the new run
+    contents = [getattr(m, "content", "") for m in second["messages"]]
+    assert "9" not in contents
+
+
+def test_fast_mode_never_enters_tool_loop(monkeypatch):
+    graph, gen, rag, search = make_graph(
+        monkeypatch,
+        source=KnowledgeSource.NONE,
+        docs=[],
+        search_calls_expected=False,
+        gen_answer="fast answer",
+    )
+
+    result = graph.invoke(
+        {
+            "query": "q",
+            "conversation_id": "1",
+            "history": [],
+            "agent_mode": "fast",
+        },
+        config={"configurable": {"thread_id": "1"}},
+    )
+
+    assert result["response"] == "fast answer"
+    # FakeGenLLM has no bind_tools; the thinking path would have raised
+    assert gen.last_prompt == "PROMPT"
+
+
+def test_thinking_mode_configures_gemini_high_and_include_thoughts(monkeypatch):
+    graph, gen = make_thinking_graph(
+        monkeypatch,
+        [
+            _tool_call("calculator", {"expression": "2 + 2"}, "call_1"),
+            AIMessage(content="the answer"),
+        ],
+    )
+
+    graph.invoke(
+        {
+            "query": "q",
+            "conversation_id": "1",
+            "history": [],
+            "agent_mode": "thinking",
+            "llm_config": {
+                "model": "gemini-3.5-flash-lite",
+                "model_provider": "google_genai",
+            },
+        },
+        config={"configurable": {"thread_id": "1"}},
+    )
+
+    # every reason step requests Gemini's deepest thinking AND the thoughts back
+    assert gen.last_kwargs == {"thinking_level": "high", "include_thoughts": True}
+
+
+def test_fast_mode_configures_gemini_minimal_thinking(monkeypatch):
+    graph, gen, rag, search = make_graph(
+        monkeypatch,
+        source=KnowledgeSource.NONE,
+        docs=[],
+        search_calls_expected=False,
+        gen_answer="fast answer",
+    )
+
+    graph.invoke(
+        {
+            "query": "q",
+            "conversation_id": "1",
+            "history": [],
+            "agent_mode": "fast",
+            "llm_config": {
+                "model": "gemini-3.5-flash-lite",
+                "model_provider": "google_genai",
+            },
+        },
+        config={"configurable": {"thread_id": "1"}},
+    )
+
+    assert gen.last_kwargs == {"thinking_level": "minimal"}
+
+
+def test_non_google_models_get_no_thinking_kwargs(monkeypatch):
+    graph, gen = make_thinking_graph(
+        monkeypatch,
+        [_tool_call("calculator", {"expression": "2 + 2"}, "call_1"), AIMessage(content="ok")],
+    )
+
+    graph.invoke(
+        {
+            "query": "q",
+            "conversation_id": "1",
+            "history": [],
+            "agent_mode": "thinking",
+            "llm_config": {"model": "some-model", "model_provider": "openai"},
+        },
+        config={"configurable": {"thread_id": "1"}},
+    )
+
+    assert gen.last_kwargs == {}
+
+
+def test_checkpointer_serializes_messages_round_trip():
+    serde = JsonPlusSerializer()
+    messages = [
+        SystemMessage(content="sys"),
+        HumanMessage(content="q"),
+        _tool_call("calculator", {"expression": "2 + 2"}, "call_1"),
+        ToolMessage(content="4", tool_call_id="call_1"),
+    ]
+
+    data = serde.dumps_typed(messages)
+    loaded = serde.loads_typed(data)
+
+    assert [m.content for m in loaded] == [m.content for m in messages]
+    assert loaded[2].tool_calls[0]["name"] == "calculator"
+    assert loaded[3].content == "4"

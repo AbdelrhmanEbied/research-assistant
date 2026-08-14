@@ -12,6 +12,7 @@ from agent.llms import (
     get_llms,
     get_request_api_key,
     set_request_api_key,
+    set_request_conversation_id,
 )
 from app.backend.database.database import SessionLocal
 from app.backend.database.repositories import (
@@ -33,6 +34,66 @@ DETAILS_MARKER = "@@RESEARCH_DETAILS@@"
 #: Sent at the end of the stream when generation failed so the frontend can
 #: surface the real error instead of a generic "generation stopped" message.
 ERROR_MARKER = "@@RESEARCH_ERROR@@"
+#: Delimiter for thinking-mode segments. Each thinking segment is emitted as
+#: ``{text}\n@@RESEARCH_THINKING@@\n`` and the final answer follows plainly, so
+#: the frontend can statelessly treat everything before the last marker as
+#: thinking and everything after it as the answer.
+THINKING_MARKER = "@@RESEARCH_THINKING@@"
+
+
+def _split_content_parts(content) -> tuple[list[str], list[str]]:
+    """Return ``(text_parts, thinking_parts)`` from an ``AIMessageChunk``.
+
+    Gemini 3 exposes its reasoning thoughts as content blocks of the form
+    ``{"type": "thinking", "thinking": ...}`` (only when the model was called
+    with ``include_thoughts=True``); the actual answer is carried in
+    ``{"type": "text", "text": ...}`` blocks or plain strings (OpenAI/Anthropic).
+    """
+    text_parts: list[str] = []
+    thinking_parts: list[str] = []
+
+    if isinstance(content, str):
+        if content:
+            text_parts.append(content)
+        return text_parts, thinking_parts
+
+    if isinstance(content, list):
+        for block in content:
+            if isinstance(block, str):
+                if block:
+                    text_parts.append(block)
+            elif isinstance(block, dict):
+                block_type = block.get("type")
+                if block_type == "thinking":
+                    thought = block.get("thinking") or block.get("text")
+                    if thought:
+                        thinking_parts.append(thought)
+                elif block_type == "text":
+                    text = block.get("text")
+                    if text:
+                        text_parts.append(text)
+
+    return text_parts, thinking_parts
+
+
+def _chunk_text_parts(content) -> list[str]:
+    """Plain-text pieces of an ``AIMessageChunk`` content field (thinking excluded)."""
+    text, _ = _split_content_parts(content)
+    return text
+
+
+#: Human-readable status shown in the thinking panel while a tool runs.
+_TOOL_ACTIVITY = {
+    "calculator": "Calling calculator...",
+    "python_code_executor": "Running Python...",
+    "list_documents": "Listing documents...",
+    "read_document": "Reading documents...",
+}
+
+
+def _tool_status_line(tool_name: str) -> str:
+    return _TOOL_ACTIVITY.get(tool_name) or f"Calling {tool_name}..."
+
 
 #: Provider label used in response details.
 PROVIDER_LABELS = {
@@ -260,6 +321,7 @@ class ChatService:
             mode=request.mode.value if request.mode else None,
             source=request.source.value if request.source else None,
             retrieval=request.retrieval.model_dump() if request.retrieval else None,
+            agent_mode=request.agent_mode.value if request.agent_mode else None,
             history=None,
             persist_user=True,
             generate_title=True,
@@ -306,6 +368,7 @@ class ChatService:
             mode=request.mode.value if request.mode else None,
             source=request.source.value if request.source else None,
             retrieval=request.retrieval.model_dump() if request.retrieval else None,
+            agent_mode=request.agent_mode.value if request.agent_mode else None,
             history=history,
             persist_user=False,
             generate_title=False,
@@ -324,17 +387,23 @@ class ChatService:
         mode: str | None,
         source: str | None,
         retrieval: dict | None,
+        agent_mode: str | None,
         history: list[dict] | None,
         persist_user: bool,
         generate_title: bool,
     ) -> AsyncGenerator[str]:
         set_request_api_key(request_api_key)
+        set_request_conversation_id(str(conversation_id))
 
         tracker = None
         conversation = None
         assistant_buffer: list[str] = []
         sources: list[dict] = []
         assistant_message_id: int | None = None
+        thinking_segments: list[str] = []
+        call_buffer: list[str] = []
+        call_thinking: list[str] = []
+        thinking_mode = (agent_mode or "fast") == "thinking"
 
         try:
             conversation = await self._get_conversation(conversation_id)
@@ -366,6 +435,7 @@ class ChatService:
                 "mode_override": mode,
                 "source_override": source,
                 "retrieval_config": retrieval,
+                "agent_mode": agent_mode,
             }
 
             config = {
@@ -385,28 +455,56 @@ class ChatService:
                     version="v2",
                 ):
                     if event["event"] == "on_chat_model_stream":
-                        if event.get("metadata", {}).get("langgraph_node") != "generate_answer":
-                            continue
-
+                        node = event.get("metadata", {}).get("langgraph_node")
                         chunk = event["data"]["chunk"]
-                        content = chunk.content
 
-                        if isinstance(content, str):
-                            if content:
-                                assistant_buffer.append(content)
-                                yield content
+                        if node == "agent_reason" and thinking_mode:
+                            text_parts, thinking_parts = _split_content_parts(chunk.content)
+                            # Gemini thought blocks stream progressively; surface
+                            # them live so the panel fills in while generating.
+                            for thought in thinking_parts:
+                                if thought:
+                                    call_thinking.append(thought)
+                                    yield f"{thought}\n{THINKING_MARKER}\n"
+                            # The answer text is held back until the call ends and
+                            # we know it isn't a tool-call turn, so thinking and
+                            # answer can never interleave in the same turn.
+                            call_buffer.extend(text_parts)
                             continue
 
-                        for block in content:
-                            if isinstance(block, str):
-                                if block:
-                                    assistant_buffer.append(block)
-                                    yield block
-                            elif isinstance(block, dict) and block.get("type") == "text":
-                                text = block.get("text", "")
-                                if text:
-                                    assistant_buffer.append(text)
-                                    yield text
+                        if node != "generate_answer":
+                            continue
+
+                        for text in _chunk_text_parts(chunk.content):
+                            if text:
+                                assistant_buffer.append(text)
+                                yield text
+
+                    elif event["event"] == "on_tool_start" and thinking_mode:
+                        status = _tool_status_line(event.get("name"))
+                        thinking_segments.append(status)
+                        yield f"{status}\n{THINKING_MARKER}\n"
+
+                    elif event["event"] == "on_chat_model_end":
+                        node = event.get("metadata", {}).get("langgraph_node")
+                        if node != "agent_reason" or not thinking_mode:
+                            continue
+                        # commit this call's thought blocks as one clean segment
+                        thought_text = "".join(call_thinking).strip()
+                        call_thinking.clear()
+                        if thought_text:
+                            thinking_segments.append(thought_text)
+
+                        output = event["data"].get("output")
+                        text = "".join(call_buffer).strip()
+                        call_buffer.clear()
+                        if getattr(output, "tool_calls", None):
+                            # tool-call turn: thoughts/status already streamed
+                            # live; discard any stray reasoning text
+                            continue
+                        if text:
+                            assistant_buffer.append(text)
+                            yield text
 
                     elif event["event"] == "on_chain_end":
                         if event.get("metadata", {}).get("langgraph_node") != "prepare_prompt":
@@ -421,6 +519,7 @@ class ChatService:
                 sources,
                 model=self._generation_model_name(llm_config),
                 provider=self._generation_provider(llm_config),
+                agent_mode=agent_mode,
             )
 
             if tracker is not None:
@@ -450,6 +549,7 @@ class ChatService:
             if tracker is not None:
                 clear_request_tracking()
             set_request_api_key(None)
+            set_request_conversation_id(None)
 
         full_answer = "".join(assistant_buffer).strip()
         if full_answer:
@@ -457,12 +557,16 @@ class ChatService:
                 conversation_id, "assistant", full_answer
             )
 
-        if assistant_message_id is not None and (sources or details):
+        if assistant_message_id is not None and (sources or details or thinking_segments):
             final_sources = await self._attach_document_names(sources)
-            await self._update_message_metadata(
-                assistant_message_id,
-                {"sources": final_sources or None, "details": details or None},
-            )
+            extra: dict = {}
+            if final_sources:
+                extra["sources"] = final_sources
+            if details:
+                extra["details"] = details
+            if thinking_segments:
+                extra["thinking"] = "\n\n".join(thinking_segments)
+            await self._update_message_metadata(assistant_message_id, extra or None)
 
         if sources:
             final_sources = await self._attach_document_names(sources)
@@ -482,6 +586,7 @@ class ChatService:
         *,
         model: str | None,
         provider: str | None,
+        agent_mode: str | None = None,
     ) -> dict:
         """Collect already-measured telemetry into a compact details payload.
 
@@ -493,6 +598,7 @@ class ChatService:
         return {
             "model": model or (llm_config or {}).get("model"),
             "provider": PROVIDER_LABELS.get(provider, provider),
+            "agent_mode": agent_mode,
             "source": tags.get("source"),
             "mode": tags.get("mode"),
             "search_type": tags.get("search_type"),

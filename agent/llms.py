@@ -19,6 +19,13 @@ DEFAULT_API_KEY = os.getenv("GEMINI_API_KEY")
 #: it never lands in the persisted graph state (checkpoints.db).
 _request_api_key: ContextVar[str | None] = ContextVar("request_api_key", default=None)
 
+#: Request-scoped conversation id used to scope document/code tools to the
+#: conversation's workspace and documents. Mirrors ``_request_api_key`` so it
+#: never lands in the persisted graph state either.
+_request_conversation_id: ContextVar[str | None] = ContextVar(
+    "request_conversation_id", default=None
+)
+
 
 def set_request_api_key(api_key: str | None) -> None:
     _request_api_key.set(api_key)
@@ -26,6 +33,38 @@ def set_request_api_key(api_key: str | None) -> None:
 
 def get_request_api_key() -> str | None:
     return _request_api_key.get()
+
+
+def set_request_conversation_id(conversation_id: str | None) -> None:
+    _request_conversation_id.set(conversation_id)
+
+
+def get_request_conversation_id() -> str | None:
+    return _request_conversation_id.get()
+
+
+def thinking_call_kwargs(
+    agent_mode: str | None,
+    model: str | None,
+    model_provider: str | None,
+) -> dict:
+    """Return Gemini thinking generation kwargs for a single LLM call.
+
+    Thinking mode raises Gemini 3's native ``thinking_level`` to ``high`` and
+    requests the thoughts be returned (``include_thoughts=True``) so they can
+    be streamed into the frontend thinking panel. Fast mode drops to
+    ``minimal`` for the lowest-latency configuration.
+
+    Returns ``{}`` for any other provider or non-Gemini-3 model, so models
+    that don't expose Gemini-style thinking are invoked exactly as before.
+    """
+    if model_provider != "google_genai":
+        return {}
+    if not (model or "").lower().startswith("gemini-3"):
+        return {}
+    if agent_mode == "thinking":
+        return {"thinking_level": "high", "include_thoughts": True}
+    return {"thinking_level": "minimal"}
 
 
 def _build_llms(model: str, model_provider: str, api_key: str | None = None):
