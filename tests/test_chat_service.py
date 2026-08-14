@@ -7,15 +7,20 @@ from langchain_core.messages import AIMessageChunk
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from starlette.requests import ClientDisconnect
 
 import app.backend.services.chat_service as cs
 from agent.llms import get_request_api_key
 from app.backend.database.base import Base
-from app.backend.database.models import Conversation, Message
+from app.backend.database.models import Conversation
 from app.backend.database.repositories import MessageRepository
 from app.backend.schemas.chat import ChatRequest, LLMConfig, RegenerateRequest
-from app.backend.services.chat_service import ChatService, DETAILS_MARKER, ERROR_MARKER, SOURCES_MARKER
-from starlette.requests import ClientDisconnect
+from app.backend.services.chat_service import (
+    DETAILS_MARKER,
+    ERROR_MARKER,
+    SOURCES_MARKER,
+    ChatService,
+)
 
 
 @pytest.fixture
@@ -95,7 +100,7 @@ def test_stream_yields_answer_and_sources_marker(session_factory, monkeypatch):
     )
 
     graph = FakeGraph(sources)
-    service = ChatService(graph=graph, checkpointer=None, rag=None)
+    service = ChatService(graph=graph, rag=None)
 
     async def _run():
         chunks = []
@@ -110,10 +115,10 @@ def test_stream_yields_answer_and_sources_marker(session_factory, monkeypatch):
     assert text[:marker_idx].rstrip() == "answer here"
 
     details_idx = text.index(DETAILS_MARKER)
-    payload = json.loads(text[marker_idx + len(SOURCES_MARKER):details_idx].strip())
+    payload = json.loads(text[marker_idx + len(SOURCES_MARKER) : details_idx].strip())
     assert payload == sources
 
-    details = json.loads(text[details_idx + len(DETAILS_MARKER):].strip())
+    details = json.loads(text[details_idx + len(DETAILS_MARKER) :].strip())
     assert details["model"] == "fake"
 
 
@@ -126,7 +131,7 @@ def test_stream_passes_full_history_to_graph(session_factory, monkeypatch):
     )
 
     graph = FakeGraph([])
-    service = ChatService(graph=graph, checkpointer=None, rag=None)
+    service = ChatService(graph=graph, rag=None)
 
     async def _seed():
         def _do():
@@ -168,7 +173,7 @@ def test_stream_keeps_api_key_out_of_graph_state(session_factory, monkeypatch):
     )
 
     graph = FakeGraph([])
-    service = ChatService(graph=graph, checkpointer=None, rag=None)
+    service = ChatService(graph=graph, rag=None)
 
     async def _run():
         async for _ in service.stream(
@@ -230,12 +235,10 @@ def test_regenerate_reuses_last_user_message_without_duplicating(session_factory
     _seed()
 
     graph = FakeGraph([])
-    service = ChatService(graph=graph, checkpointer=None, rag=None)
+    service = ChatService(graph=graph, rag=None)
 
     async def _run():
-        async for _ in service.regenerate(
-            RegenerateRequest(conversation_id=1)
-        ):
+        async for _ in service.regenerate(RegenerateRequest(conversation_id=1)):
             pass
 
     asyncio.run(_run())
@@ -271,7 +274,7 @@ def test_regenerate_without_user_message_raises(session_factory, monkeypatch):
 
     _seed()
 
-    service = ChatService(graph=None, checkpointer=None, rag=None)
+    service = ChatService(graph=None, rag=None)
 
     async def _run():
         async for _ in service.regenerate(RegenerateRequest(conversation_id=1)):
@@ -290,7 +293,7 @@ def test_stream_on_client_disconnect_does_not_persist_partial_answer(session_fac
     )
 
     graph = RaisingGraph(ClientDisconnect())
-    service = ChatService(graph=graph, checkpointer=None, rag=None)
+    service = ChatService(graph=graph, rag=None)
 
     async def _run():
         chunks = []
@@ -325,7 +328,7 @@ def test_export_markdown_and_json(session_factory, monkeypatch):
 
     _seed()
 
-    service = ChatService(graph=None, checkpointer=None, rag=None)
+    service = ChatService(graph=None, rag=None)
 
     async def _run():
         md = await service.export_conversation(1, "markdown")
@@ -360,7 +363,7 @@ def test_stream_persists_sources_and_details_on_message(session_factory, monkeyp
     )
 
     graph = FakeGraph(sources)
-    service = ChatService(graph=graph, checkpointer=None, rag=None)
+    service = ChatService(graph=graph, rag=None)
 
     async def _run():
         async for _ in service.stream(ChatRequest(query="q", conversation_id=1)):
@@ -384,7 +387,7 @@ def test_stream_yields_error_marker_when_generation_fails(session_factory, monke
     )
 
     graph = FailingGraph([])
-    service = ChatService(graph=graph, checkpointer=None, rag=None)
+    service = ChatService(graph=graph, rag=None)
 
     async def _run():
         chunks = []
@@ -397,7 +400,7 @@ def test_stream_yields_error_marker_when_generation_fails(session_factory, monke
 
     # the error is surfaced as a marker instead of killing the stream
     err_idx = text.index(ERROR_MARKER)
-    payload = json.loads(text[err_idx + len(ERROR_MARKER):].strip())
+    payload = json.loads(text[err_idx + len(ERROR_MARKER) :].strip())
     assert payload["message"] == "boom"
 
     # no assistant answer is persisted, only the user message
@@ -407,10 +410,11 @@ def test_stream_yields_error_marker_when_generation_fails(session_factory, monke
 
 def test_generate_title_rejects_placeholder_output(monkeypatch):
     """A model echoing 'New Chat' must not become the stored title."""
+
     def _fake_llm(output):
         return SimpleNamespace(model="fake", invoke=lambda prompt: SimpleNamespace(content=output))
 
-    service = ChatService(graph=None, checkpointer=None, rag=None)
+    service = ChatService(graph=None, rag=None)
 
     async def _run(output):
         monkeypatch.setattr(

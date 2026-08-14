@@ -23,19 +23,17 @@ class QDrantManager:
             self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config={
-                    "dense":models.VectorParams(
+                    "dense": models.VectorParams(
                         size=self.dense_dimension,
-                        distance = self.distance,
+                        distance=self.distance,
                     )
                 },
-                sparse_vectors_config={
-                    "sparse": models.SparseVectorParams()
-                }
+                sparse_vectors_config={"sparse": models.SparseVectorParams()},
             )
-    def upsert_documents(self,documents:list[EmbeddedDocument],batch_size : int = 100):
-        BATCH_SIZE = batch_size
-        for i in range(0, len(documents), BATCH_SIZE):
-            batch = documents[i:i + BATCH_SIZE]
+
+    def upsert_documents(self, documents: list[EmbeddedDocument], batch_size: int = 100):
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i : i + batch_size]
 
             points = [
                 models.PointStruct(
@@ -47,7 +45,7 @@ class QDrantManager:
                     payload={
                         **doc.metadata,
                         "text": doc.text,
-                    }
+                    },
                 )
                 for doc in batch
             ]
@@ -58,19 +56,9 @@ class QDrantManager:
                 points=points,
             )
 
-    def delete_collection(self):
-        self.client.delete_collection(
-            collection_name=self.collection_name,
-        )
-
-    def collection_info(self):
-        return self.client.get_collection(
-            collection_name=self.collection_name,
-        )
-
     def delete_document(
-            self,
-            document_id: str,
+        self,
+        document_id: str,
     ):
         self.client.delete(
             collection_name=self.collection_name,
@@ -89,82 +77,57 @@ class QDrantManager:
             wait=True,
         )
 
-    def delete_chunk(
-            self,
-            chunk_id: str,
-    ):
-        self.client.delete(
-            collection_name=self.collection_name,
-            points_selector=models.PointIdsList(
-                points=[chunk_id],
-            ),
-            wait=True,
-        )
-
-    def delete_by_filter(
-        self,
-        qdrant_filter: models.Filter,
-    ):
-        self.client.delete(
-            collection_name=self.collection_name,
-            points_selector=models.FilterSelector(
-                filter=qdrant_filter,
-            ),
-            wait=True,
-        )
-
     def search(
-            self,
-            query:EmbeddedQuery,
-            search_type: SearchType,
-            limit: int = 5,
-            qdrant_filter: models.Filter | None = None,
+        self,
+        query: EmbeddedQuery,
+        search_type: SearchType,
+        limit: int = 5,
+        qdrant_filter: models.Filter | None = None,
     ):
         match search_type:
-
             case SearchType.DENSE:
                 return self.client.query_points(
-                    collection_name  = self.collection_name,
-                    using = "dense",
-                    with_payload= True,
-                    limit = limit,
-                    query = query.dense,
-                    query_filter = qdrant_filter,
+                    collection_name=self.collection_name,
+                    using="dense",
+                    with_payload=True,
+                    limit=limit,
+                    query=query.dense,
+                    query_filter=qdrant_filter,
                 )
 
             case SearchType.SPARSE:
                 return self.client.query_points(
-                    collection_name = self.collection_name,
-                    using = "sparse",
-                    limit = limit,
+                    collection_name=self.collection_name,
+                    using="sparse",
+                    limit=limit,
                     with_payload=True,
-                    query = query.sparse,
-                    query_filter = qdrant_filter,
+                    query=query.sparse,
+                    query_filter=qdrant_filter,
                 )
 
             case SearchType.HYBRID:
                 return self.client.query_points(
-                    collection_name = self.collection_name,
+                    collection_name=self.collection_name,
                     prefetch=[
                         models.Prefetch(
-                            query = query.dense,
-                            using = "dense",
-                            filter = qdrant_filter,
+                            query=query.dense,
+                            using="dense",
+                            filter=qdrant_filter,
                         ),
                         models.Prefetch(
-                            query = query.sparse,
-                            using = "sparse",
-                            filter = qdrant_filter,
-                        )
+                            query=query.sparse,
+                            using="sparse",
+                            filter=qdrant_filter,
+                        ),
                     ],
-                    limit = limit,
-                    with_payload = True,
-                    query = models.FusionQuery(
+                    limit=limit,
+                    with_payload=True,
+                    query=models.FusionQuery(
                         fusion=models.Fusion.RRF,
                     ),
                 )
 
     def close_client(
-            self,
+        self,
     ):
         return self.client.close()

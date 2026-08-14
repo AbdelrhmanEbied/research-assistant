@@ -1,8 +1,6 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
-
-from agent.agent_schemas import KnowledgeSource
 
 
 class LLMConfig(BaseModel):
@@ -11,7 +9,7 @@ class LLMConfig(BaseModel):
     api_key: str | None = None
 
 
-class ModeOverride(str, Enum):
+class ModeOverride(StrEnum):
     AUTO = "auto"
     CHAT = "chat"
     SUMMARIZE = "summarize"
@@ -19,7 +17,7 @@ class ModeOverride(str, Enum):
     EXPLAIN = "explain"
 
 
-class SourceOverride(str, Enum):
+class SourceOverride(StrEnum):
     AUTO = "auto"
     DOCUMENTS = "documents"
     WEB = "web"
@@ -54,8 +52,3 @@ class RegenerateRequest(BaseModel):
     mode: ModeOverride | None = None
     source: SourceOverride | None = None
     retrieval: RetrievalConfig | None = None
-
-
-class ChatResponse(BaseModel):
-    response: str
-    source: KnowledgeSource

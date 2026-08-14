@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from telemetry.config import TelemetryConfig
-from telemetry.storage import TelemetryStore, get_default_store, _naive_utc_now
+from telemetry.storage import TelemetryStore, _naive_utc_now, get_default_store
 
 logger = logging.getLogger(__name__)
 
@@ -191,9 +191,7 @@ class TimedSpan:
         return self._span
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> bool:
-        elapsed = (
-            time.perf_counter() - self._started_at if self._started_at is not None else 0.0
-        )
+        elapsed = time.perf_counter() - self._started_at if self._started_at is not None else 0.0
         if self._metric is not None:
             self._tracker._record_latency(self._metric, elapsed)
         if self._span is not None:

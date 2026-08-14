@@ -94,27 +94,6 @@ def get_llms(
     return _cached_llms(model, model_provider, api_key)
 
 
-def configure_llms(
-    model: str,
-    model_provider: str,
-    api_key: str | None = None,
-):
-    """Compatibility alias kept for callers that used to mutate global state.
-
-    It simply returns the cached LLM pair for the given configuration and no
-    longer affects other requests.
-    """
-    return get_llms(model=model, model_provider=model_provider, api_key=api_key)
-
-
-def get_generation_llm():
-    return get_llms()[0]
-
-
-def get_classifier_llm():
-    return get_llms()[1]
-
-
 def extract_llm_text(response) -> str:
     """Extract the text payload from an ``AIMessage``/``AIMessageChunk``.
 

@@ -10,7 +10,7 @@ from app.backend.routers.settings_router import router as settings_router
 from app.backend.routers.telemetry_router import router as telemetry_router
 
 app = FastAPI(
-    title = "LangGraph Test",
+    title="Research Assistant",
     lifespan=lifespan,
 )
 
@@ -20,11 +20,11 @@ app.include_router(document_router)
 app.include_router(telemetry_router)
 app.include_router(settings_router)
 
+
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
     return {"status": "ok"}
 
+
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-
-    

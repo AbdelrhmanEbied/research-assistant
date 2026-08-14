@@ -4,14 +4,16 @@ import logging
 from contextvars import ContextVar
 
 from telemetry.config import TelemetryConfig
-from telemetry.storage import TelemetryStore, get_default_store, reset_default_store
+from telemetry.storage import TelemetryStore, get_default_store
 from telemetry.tracker import NullTelemetryTracker, TelemetryTracker
 
 logger = logging.getLogger(__name__)
 
 _NULL_TRACKER = NullTelemetryTracker()
 
-_current_tracker: ContextVar[TelemetryTracker] = ContextVar("telemetry_tracker", default=_NULL_TRACKER)
+_current_tracker: ContextVar[TelemetryTracker] = ContextVar(
+    "telemetry_tracker", default=_NULL_TRACKER
+)
 
 
 def init_telemetry(config: TelemetryConfig | None = None) -> bool:

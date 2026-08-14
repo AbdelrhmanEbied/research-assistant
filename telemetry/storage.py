@@ -90,15 +90,9 @@ class TelemetryStore:
 
     def list_events(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         with self._session_factory() as session:
-            rows = (
-                session.scalars(
-                    select(StoredEvent)
-                    .order_by(StoredEvent.id.desc())
-                    .limit(limit)
-                    .offset(offset)
-                )
-                .all()
-            )
+            rows = session.scalars(
+                select(StoredEvent).order_by(StoredEvent.id.desc()).limit(limit).offset(offset)
+            ).all()
             return [self._to_dict(row) for row in rows]
 
     def summary(self) -> dict[str, Any]:
@@ -136,8 +130,7 @@ class TelemetryStore:
                 if isinstance(value, (int, float)):
                     metric_values.setdefault(name, []).append(float(value))
         metric_averages = {
-            name: round(sum(values) / len(values), 2)
-            for name, values in metric_values.items()
+            name: round(sum(values) / len(values), 2) for name, values in metric_values.items()
         }
 
         route_buckets: dict[str, dict[str, Any]] = {}
@@ -182,7 +175,9 @@ class TelemetryStore:
                     "count": bucket["count"],
                     "success": bucket["success"],
                     "failures": bucket["count"] - bucket["success"],
-                    "avg_duration_ms": round(sum(durations) / len(durations), 2) if durations else 0.0,
+                    "avg_duration_ms": round(sum(durations) / len(durations), 2)
+                    if durations
+                    else 0.0,
                 }
             )
 
@@ -239,8 +234,3 @@ def get_default_store(db_path: str | None = None) -> TelemetryStore:
     if _default_store is None:
         _default_store = TelemetryStore(db_path)
     return _default_store
-
-
-def reset_default_store() -> None:
-    global _default_store
-    _default_store = None

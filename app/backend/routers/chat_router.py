@@ -8,7 +8,6 @@ from app.backend.database.repositories import ConversationRepository, MessageRep
 from app.backend.schemas.chat import ChatRequest, RegenerateRequest
 from app.backend.schemas.conversation import (
     ConversationResponse,
-    MessageResponse,
     MessagesPage,
 )
 from app.backend.services.chat_service import ChatService
@@ -18,13 +17,14 @@ router = APIRouter(
     tags=["Chat"],
 )
 
+
 def get_checkpointer(request: Request):
     return request.app.state.checkpointer
+
 
 def get_chat_service(request: Request) -> ChatService:  # noqa: B008
     return ChatService(
         graph=request.app.state.graph,
-        checkpointer=request.app.state.checkpointer,
         rag=request.app.state.rag,
     )
 
@@ -51,8 +51,7 @@ async def regenerate_response(
     )
 
 
-@router.post("/conversations",response_model= ConversationResponse)
-
+@router.post("/conversations", response_model=ConversationResponse)
 def create_conversation(
     db: Session = Depends(get_db),  # noqa: B008
 ):
@@ -61,8 +60,8 @@ def create_conversation(
     conversation = repo.create()
 
     return ConversationResponse(
-        id = conversation.id,
-        title = conversation.title,
+        id=conversation.id,
+        title=conversation.title,
     )
 
 
@@ -103,9 +102,7 @@ async def delete_conversation(
 
     repo.delete(conversation_id)
 
-    return {
-        "message": "Conversation deleted successfully."
-    }
+    return {"message": "Conversation deleted successfully."}
 
 
 @router.get("/list", response_model=list[ConversationResponse])

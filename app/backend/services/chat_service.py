@@ -43,9 +43,8 @@ PROVIDER_LABELS = {
 
 
 class ChatService:
-    def __init__(self, graph, checkpointer, rag=None):
+    def __init__(self, graph, rag=None):
         self.graph = graph
-        self.checkpointer = checkpointer
         self.rag = rag
 
     def _embedding_model_name(self) -> str | None:
@@ -59,9 +58,8 @@ class ChatService:
             return llm_config["model"]
         try:
             generation_llm = get_llms()[0]
-            return (
-                getattr(generation_llm, "model_name", None)
-                or getattr(generation_llm, "model", None)
+            return getattr(generation_llm, "model_name", None) or getattr(
+                generation_llm, "model", None
             )
         except Exception:
             return None
@@ -170,10 +168,7 @@ class ChatService:
             db = SessionLocal()
             try:
                 messages = MessageRepository(db).list_for_history(conversation_id)
-                return [
-                    {"id": m.id, "role": m.role, "content": m.content}
-                    for m in messages
-                ]
+                return [{"id": m.id, "role": m.role, "content": m.content} for m in messages]
             finally:
                 db.close()
 
@@ -224,6 +219,7 @@ class ChatService:
         doc_ids = {s.get("document_id") for s in sources if s.get("document_id")}
         names: dict[str, str] = {}
         if doc_ids:
+
             def _do():
                 db = SessionLocal()
                 try:
@@ -296,14 +292,11 @@ class ChatService:
 
         last_user = messages[last_user_idx]
 
-        trailing_ids = [m["id"] for m in messages[last_user_idx + 1:] if m["id"] > last_user["id"]]
+        trailing_ids = [m["id"] for m in messages[last_user_idx + 1 :] if m["id"] > last_user["id"]]
         if trailing_ids:
             await self._delete_messages_after(request.conversation_id, last_user["id"])
 
-        history = [
-            {"role": m["role"], "content": m["content"]}
-            for m in messages[:last_user_idx]
-        ]
+        history = [{"role": m["role"], "content": m["content"]} for m in messages[:last_user_idx]]
 
         async for chunk in self._generate(
             conversation_id=request.conversation_id,

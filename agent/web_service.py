@@ -18,22 +18,20 @@ tavily_client = TavilyClient(api_key=tavily_api_key)
 #: thorough and takes longer.
 SEARCH_DEPTHS = ("basic", "advanced")
 DEFAULT_SEARCH_DEPTH = "basic"
+
+
 class WebSearchService:
     def __init__(
-            self,
-            tavily_client: TavilyClient,
-            reranker: Reranker | None,
-            context_builder: ContextBuilder,
-            prompt_builder: PromptBuilder,
+        self,
+        tavily_client: TavilyClient,
+        reranker: Reranker | None,
+        context_builder: ContextBuilder,
+        prompt_builder: PromptBuilder,
     ):
         self.client = tavily_client
         self.reranker = reranker
         self.context_builder = context_builder
         self.prompt_builder = prompt_builder
-
-
-    def _build_prompt(self, question, context,mode:PromptMode | str):
-        return self.prompt_builder.build(question=question, context=context,mode = mode)
 
     def _search_tavily(
         self,
@@ -44,50 +42,39 @@ class WebSearchService:
         response = self.client.search(
             query=query,
             search_depth=search_depth,
-            max_results= max_results,
+            max_results=max_results,
             include_answer=False,
             include_raw_content=False,
             include_images=False,
         )
-        print("=" * 80)
-        print(response.keys())
-        print("RESULT COUNT:", len(response["results"]))
-        print("=" * 80)
         return self._convert(response["results"])
 
-    def _convert(
-            self,
-            results: list[dict]
-
-    ) -> list[RetrievedDocuments]:
+    def _convert(self, results: list[dict]) -> list[RetrievedDocuments]:
         documents = []
 
         for result in results:
             documents.append(
                 RetrievedDocuments(
-                    text=result.get("raw_content")
-                    or result.get("content",""),
-
-                    score = result.get("score",0.0),
-
+                    text=result.get("raw_content") or result.get("content", ""),
+                    score=result.get("score", 0.0),
                     metadata={
-
                         "title": result.get("title"),
                         "url": result.get("url"),
-                        "source":"web",
-                    }
+                        "source": "web",
+                    },
                 )
             )
         return documents
+
     def _rerank(
-            self,
-            query: str,
-            documents: list[RetrievedDocuments],
-    )-> list[RetrievedDocuments]:
+        self,
+        query: str,
+        documents: list[RetrievedDocuments],
+    ) -> list[RetrievedDocuments]:
         if self.reranker is None:
             return documents
         else:
-            return self.reranker.rerank(documents=documents,query=query)
+            return self.reranker.rerank(documents=documents, query=query)
 
     def search(
         self,
@@ -133,10 +120,11 @@ class WebSearchService:
             prompt=prompt,
         )
 
+
 def create_web_search_service(reranker: Reranker) -> WebSearchService:
     return WebSearchService(
         tavily_client=tavily_client,
         context_builder=ContextBuilder(),
         prompt_builder=PromptBuilder(system_prompt=SYSTEM_PROMPT),
-        reranker=reranker, 
+        reranker=reranker,
     )
