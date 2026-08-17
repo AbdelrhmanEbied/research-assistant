@@ -1,0 +1,18 @@
+Attention is the core mechanism of transformer models.
+
+Instead of processing a sequence step by step like a recurrent network, a
+transformer lets every token attend to every other token in the sequence.
+For each query token, attention computes a weighted sum over all key tokens,
+where the weights come from a similarity score between the query and each key.
+
+This design gives transformers two major advantages. First, they capture
+long-range dependencies directly, since information can flow between any two
+positions in a single layer. Second, the computation is highly parallel, which
+makes training on large corpora efficient.
+
+Multi-head attention runs several of these mechanisms in parallel, allowing
+the model to focus on different relationships at the same time, such as
+syntactic structure, coreference, and position.
+
+Because of these properties, attention has become the backbone of nearly all
+modern large language models.

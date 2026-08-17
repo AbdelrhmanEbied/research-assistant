@@ -18,7 +18,6 @@ data
 settings.json
 .env
 
-# Tests & docs
+# Tests & docs (README.md stays: pyproject.toml declares readme = "README.md")
 tests
-README.md
 assets

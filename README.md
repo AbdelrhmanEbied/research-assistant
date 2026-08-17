@@ -325,6 +325,58 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
+## RAG evaluation
+
+The `evaluation/` package scores the real retrieval and generation pipeline (`RAGService.prepare`) against labeled datasets. There are two layers:
+
+* **Retrieval metrics** — offline, deterministic, no LLM calls: **hit rate@k, recall@k, precision@k, MRR, NDCG@k** against ground-truth chunk or document ids.
+* **LLM-as-judge metrics** — **faithfulness** (is the answer grounded in the retrieved context?), **answer relevance**, and **context relevance**, scored by the app's own LLM providers via structured output. Requires configured API keys.
+
+### Dataset format
+
+A JSONL file with one `EvalItem` per line:
+
+```json
+{"query": "How does hybrid retrieval work?", "relevant_document_ids": ["hybrid_retrieval"]}
+{"query": "What is attention?", "relevant_chunk_ids": ["c1", "c3"], "reference_answer": "..."}
+```
+
+Provide `relevant_chunk_ids`, `relevant_document_ids`, or both. `reference_answer` is optional and unused by the current judges. A runnable sample lives in `evaluation/sample_data/`.
+
+### Running
+
+```bash
+# retrieval-only against a fresh corpus (indexed into a temp store)
+uv run python scripts/evaluate_rag.py \
+  --dataset evaluation/sample_data/example.jsonl \
+  --corpus evaluation/sample_data/corpus \
+  --search-types dense,sparse,hybrid --k 3
+
+# against an existing indexed store
+uv run python scripts/evaluate_rag.py --dataset my-data.jsonl --db-path ./qdrant_db
+
+# add LLM-as-judge metrics (needs API keys; 1 generation + 3 judge calls per query)
+uv run python scripts/evaluate_rag.py --dataset my-data.jsonl --corpus ./docs --judge \
+  --judge-model gemini-3.5-flash-lite
+
+# save the full JSON report
+uv run python scripts/evaluate_rag.py --dataset data.jsonl --corpus ./docs --output report.json
+```
+
+Run `uv run python scripts/evaluate_rag.py --help` for all options.
+
+### Baseline results
+
+Run on `evaluation/sample_data/` (3 documents, one clearly relevant per query, top-k 3, no rerank):
+
+| search type | hit_rate | recall@3 | precision@3 | mrr | ndcg@3 |
+|---|---|---|---|---|---|
+| dense | 1.000 | 1.000 | 0.333 | 1.000 | 1.000 |
+| sparse | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| hybrid | 1.000 | 1.000 | 0.333 | 1.000 | 1.000 |
+
+Perfect hit/recall/MRR/NDCG confirm the pipeline (chunking, embedding, Qdrant search) works end-to-end. Treat these as a **smoke test**, not real quality signal: the sample corpus has one clearly relevant document per query, so it does not stress retrieval discrimination. `precision@3` is capped at ~0.33 because only one of the three returned documents is relevant; sparse scores higher because BM25 returns only exact-match chunks. Build a larger dataset with overlapping topics and chunk-level labels for meaningful numbers.
+
 ## Deploying to Kubernetes
 
 Kubernetes manifests live in `k8s/` and deploy a single-replica app backed by a persistent volume — the app keeps all state (SQLite, settings, and the embedded Qdrant store) on a 1Gi PVC mounted at `/data`.
@@ -360,6 +412,7 @@ For local kind/minikube there is no cloud load balancer, so point the ingress ho
 A GitHub Actions workflow (`.github/workflows/ci-cd.yaml`) runs on every push to `main`, `v*` tags, and all pull requests:
 
 * **Lint & Test** — sets up Python 3.14 with `uv`, installs the locked dependencies, then runs `ruff check`, `ruff format --check`, and `pytest`.
+* **RAG Evaluation** — after tests pass, runs the retrieval-only evaluation on the sample dataset/corpus and fails the build if `hit_rate` or `mrr` drop below 0.7.
 * **Build & Push** — on pushes only (after lint/tests pass), builds the Docker image with BuildKit caching and `BAKE_MODELS=true` (so the embedding models ship inside the image) and pushes it to the GitHub Container Registry (`ghcr.io/<owner>/research-assistant`) tagged with the short commit SHA, `latest` on the default branch, and semver tags for `v*` releases.
 * **Deploy** — on pushes to `main` only (after the image is built), deploys the new image to Kubernetes from a self-hosted runner using `scripts/deploy.sh`. The runner must have `kubectl` access to the cluster and a `.env` file with your API keys; secrets are built from it at deploy time and never stored in the repository.
 

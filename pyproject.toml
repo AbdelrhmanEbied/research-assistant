@@ -48,7 +48,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["agent", "rag", "app", "telemetry"]
+packages = ["agent", "rag", "app", "telemetry", "evaluation"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "paths.py" = "paths.py"

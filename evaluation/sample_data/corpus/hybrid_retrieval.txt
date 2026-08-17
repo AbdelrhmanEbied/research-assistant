@@ -1,0 +1,17 @@
+Hybrid retrieval combines dense and sparse search in a single query pipeline.
+
+Dense retrieval embeds the query and documents into vectors and finds
+neighbours by cosine similarity. It understands meaning and synonyms but can
+miss exact terms that were never seen during training. Sparse retrieval, often
+BM25, matches on exact keyword overlap and captures rare or technical terms
+reliably.
+
+Hybrid search runs both approaches in parallel and fuses their ranked lists.
+The most common fusion strategy is reciprocal rank fusion (RRF), which sums
+1 / (k + rank) across the two result sets. Because RRF is rank-based rather
+than score-based, the two methods can be combined without calibrating their
+scores.
+
+The result is a single ranked list where lexical precision and semantic
+recall both contribute, which tends to outperform either method alone across
+a wide range of queries.

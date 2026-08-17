@@ -133,6 +133,35 @@ def get_llms(
     return _cached_llms(model, model_provider, api_key)
 
 
+def build_structured_llm(
+    schema,
+    model: str | None = None,
+    model_provider: str | None = None,
+    api_key: str | None = None,
+    **kwargs,
+):
+    """Return an LLM with ``schema`` as its structured output.
+
+    Resolves model/provider/api_key exactly like ``get_llms`` (persisted
+    settings first, then env defaults), so judge calls reuse the same providers
+    and keys as the application. ``kwargs`` are forwarded to
+    ``init_chat_model`` (e.g. ``temperature=0``).
+    """
+    if model is None or model_provider is None:
+        default_model, default_provider = _default_llm_config()
+        model = model or default_model
+        model_provider = model_provider or default_provider
+
+    if api_key is None:
+        api_key = _resolve_default_api_key(model_provider)
+
+    llm_kwargs = {"model": model, "model_provider": model_provider, **kwargs}
+    if api_key:
+        llm_kwargs["api_key"] = api_key
+
+    return init_chat_model(**llm_kwargs).with_structured_output(schema)
+
+
 def extract_llm_text(response) -> str:
     """Extract the text payload from an ``AIMessage``/``AIMessageChunk``.
 

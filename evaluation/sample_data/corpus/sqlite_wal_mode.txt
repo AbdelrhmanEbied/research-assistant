@@ -1,0 +1,17 @@
+Write-ahead logging, or WAL, is a journal mode for SQLite.
+
+In the default rollback journal mode, a writer holds an exclusive lock and
+readers must wait. WAL changes this: writers append committed changes to a
+separate WAL file, while readers continue reading the original database file.
+This means a single writer and multiple readers can work at the same time
+without blocking each other.
+
+WAL also groups writes into fewer, larger fsync operations, which reduces disk
+stall and improves write throughput on both local and network storage.
+
+The trade-offs are modest: the WAL file must be checkpointed back into the main
+database periodically, and the database cannot be opened from two machines at
+once while WAL is active.
+
+For a local-first application that writes frequently and reads on every
+request, enabling WAL mode is a simple, effective win.

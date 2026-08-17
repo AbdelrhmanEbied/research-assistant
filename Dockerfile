@@ -23,7 +23,7 @@ USER appuser
 ARG BAKE_MODELS=false
 RUN <<'EOF'
 if [ "$BAKE_MODELS" = "true" ]; then
-  uv run python - <<'PYEOF'
+  /app/.venv/bin/python - <<'PYEOF'
 from pathlib import Path
 
 from fastembed import SparseTextEmbedding, TextEmbedding
