@@ -1,0 +1,1269 @@
+{
+  "config": {
+    "dataset": "evaluation/sample_data/example.jsonl",
+    "db_path": "(temp corpus)",
+    "k": 3,
+    "search_types": [
+      "dense",
+      "sparse",
+      "hybrid"
+    ],
+    "rerank": false,
+    "judge": false,
+    "items": 20
+  },
+  "retrieval": {
+    "dense/no-rerank:chunk": {
+      "hit_rate": 0.95,
+      "recall": 0.95,
+      "precision": 0.36666666666666664,
+      "mrr": 0.9,
+      "ndcg": 0.9090790148145551,
+      "n": 20
+    },
+    "dense/no-rerank:document": {
+      "hit_rate": 0.95,
+      "recall": 0.95,
+      "precision": 0.525,
+      "mrr": 0.925,
+      "ndcg": 0.9315464876785728,
+      "n": 20
+    },
+    "hybrid/no-rerank:chunk": {
+      "hit_rate": 1.0,
+      "recall": 0.975,
+      "precision": 0.36666666666666664,
+      "mrr": 0.9,
+      "ndcg": 0.9099681428548552,
+      "n": 20
+    },
+    "hybrid/no-rerank:document": {
+      "hit_rate": 1.0,
+      "recall": 1.0,
+      "precision": 0.525,
+      "mrr": 0.95,
+      "ndcg": 0.9590790148145552,
+      "n": 20
+    },
+    "sparse/no-rerank:chunk": {
+      "hit_rate": 1.0,
+      "recall": 0.975,
+      "precision": 0.36666666666666664,
+      "mrr": 0.9416666666666667,
+      "ndcg": 0.9363147192765459,
+      "n": 20
+    },
+    "sparse/no-rerank:document": {
+      "hit_rate": 1.0,
+      "recall": 1.0,
+      "precision": 0.4916666666666667,
+      "mrr": 1.0,
+      "ndcg": 0.9959860394574094,
+      "n": 20
+    }
+  },
+  "quality": {},
+  "per_query_retrieval": [
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "How does hybrid retrieval combine dense and sparse search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "How does hybrid retrieval combine dense and sparse search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "How does hybrid retrieval combine dense and sparse search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What role does attention play in transformer models?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What role does attention play in transformer models?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What role does attention play in transformer models?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Why is WAL mode recommended for SQLite databases?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Why is WAL mode recommended for SQLite databases?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Why is WAL mode recommended for SQLite databases?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What are dense embeddings and how is similarity measured between vectors?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What are dense embeddings and how is similarity measured between vectors?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What are dense embeddings and how is similarity measured between vectors?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "How does BM25 use term frequency and inverse document frequency to rank documents?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "How does BM25 use term frequency and inverse document frequency to rank documents?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "How does BM25 use term frequency and inverse document frequency to rank documents?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What is the main weakness of sparse retrieval such as BM25?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What is the main weakness of sparse retrieval such as BM25?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What is the main weakness of sparse retrieval such as BM25?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What is reciprocal rank fusion and why is it used to combine retriever results?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 1.0,
+        "ndcg": 0.9197207891481876
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What is reciprocal rank fusion and why is it used to combine retriever results?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 0.5,
+        "ndcg": 0.6934264036172708
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What is reciprocal rank fusion and why is it used to combine retriever results?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 0.5,
+        "ndcg": 0.6934264036172708
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Why do hybrid retrieval systems use rank-based fusion instead of blending raw scores?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Why do hybrid retrieval systems use rank-based fusion instead of blending raw scores?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 1.0,
+        "ndcg": 0.9197207891481876
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Why do hybrid retrieval systems use rank-based fusion instead of blending raw scores?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Which embedding library runs ONNX models on the CPU and can pre-bake models into a Docker image?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Which embedding library runs ONNX models on the CPU and can pre-bake models into a Docker image?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Which embedding library runs ONNX models on the CPU and can pre-bake models into a Docker image?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What small embedding models does FastEmbed provide and what is the trade-off?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What small embedding models does FastEmbed provide and what is the trade-off?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 0.3333333333333333,
+        "ndcg": 0.5
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What small embedding models does FastEmbed provide and what is the trade-off?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Why are cross-encoders more accurate than bi-encoders for reranking?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Why are cross-encoders more accurate than bi-encoders for reranking?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Why are cross-encoders more accurate than bi-encoders for reranking?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What is diversified reranking and how does it guarantee one chunk per document?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What is diversified reranking and how does it guarantee one chunk per document?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What is diversified reranking and how does it guarantee one chunk per document?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What is a vector database collection and how does Qdrant support hybrid vectors?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What is a vector database collection and how does Qdrant support hybrid vectors?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What is a vector database collection and how does Qdrant support hybrid vectors?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What is the embedded mode of Qdrant and what are its limitations?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What is the embedded mode of Qdrant and what are its limitations?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What is the embedded mode of Qdrant and what are its limitations?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Why does retrieval-augmented generation reduce hallucination?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Why does retrieval-augmented generation reduce hallucination?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Why does retrieval-augmented generation reduce hallucination?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Why should retrieval be evaluated separately from generation in a RAG system?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Why should retrieval be evaluated separately from generation in a RAG system?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Why should retrieval be evaluated separately from generation in a RAG system?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "What is the difference between BM25 keyword matching and dense semantic similarity?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "What is the difference between BM25 keyword matching and dense semantic similarity?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 0.5,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 0.6131471927654584
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 1.0,
+        "ndcg": 0.9197207891481876
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "What is the difference between BM25 keyword matching and dense semantic similarity?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 0.5,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 0.6131471927654584
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.6666666666666666,
+        "mrr": 1.0,
+        "ndcg": 0.9197207891481876
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Where does this project store document chunks for similarity search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 0.0,
+        "recall": 0.0,
+        "precision": 0.0,
+        "mrr": 0.0,
+        "ndcg": 0.0
+      },
+      "document_metrics": {
+        "hit_rate": 0.0,
+        "recall": 0.0,
+        "precision": 0.0,
+        "mrr": 0.0,
+        "ndcg": 0.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Where does this project store document chunks for similarity search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Where does this project store document chunks for similarity search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "Which library provides both embedding models and a cross-encoder reranker for local search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "Which library provides both embedding models and a cross-encoder reranker for local search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "Which library provides both embedding models and a cross-encoder reranker for local search?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575
+      }
+    },
+    {
+      "search_type": "dense",
+      "rerank": false,
+      "query": "How does a cross-encoder score a query and a candidate document together?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "sparse",
+      "rerank": false,
+      "query": "How does a cross-encoder score a query and a candidate document together?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    },
+    {
+      "search_type": "hybrid",
+      "rerank": false,
+      "query": "How does a cross-encoder score a query and a candidate document together?",
+      "retrieved_count": 3,
+      "chunk_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      },
+      "document_metrics": {
+        "hit_rate": 1.0,
+        "recall": 1.0,
+        "precision": 0.5,
+        "mrr": 1.0,
+        "ndcg": 1.0
+      }
+    }
+  ],
+  "per_query_quality": []
+}

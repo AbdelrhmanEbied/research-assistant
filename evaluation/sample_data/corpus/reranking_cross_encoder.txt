@@ -1,0 +1,21 @@
+Reranking is a two-stage retrieval pattern that improves precision without
+paying the cost of a slow model on every document.
+
+In the first stage, a cheap and fast retriever, such as BM25 or a dense
+embedding search, fetches a generous candidate set. In the second stage, a
+more powerful model reorders that candidate set and keeps only the top few
+results. This keeps the expensive model's work small.
+
+Cross-encoders are the usual reranking model. Unlike a bi-encoder, which
+encodes the query and each document separately, a cross-encoder processes the
+query and a candidate document together in a single pass. This lets the model
+see the fine-grained interaction between them, so its relevance judgement is
+far more accurate. The cost is that the model cannot precompute document
+vectors, so every candidate must be scored at query time.
+
+A variant called diversified reranking goes one step further. After the model
+scores every candidate, it greedily takes the top chunk of each distinct
+document before filling the remaining slots by pure relevance. This guarantees
+that a single dominant document cannot monopolize the results, which is
+especially valuable for comparison queries that should cover several documents
+fairly.

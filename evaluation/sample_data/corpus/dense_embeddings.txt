@@ -1,0 +1,19 @@
+Dense embeddings are at the heart of semantic search.
+
+A dense embedding model maps text into a fixed-size vector of floating point
+numbers, typically hundreds of dimensions, so that texts with similar meaning
+end up close together in the vector space. Similarity is measured with the
+cosine of the angle between two vectors: the closer to 1, the more similar the
+meanings. Cosine similarity ignores vector magnitude, which makes it robust to
+documents of very different lengths.
+
+Dense retrieval is strong at capturing meaning and synonyms. A query that uses
+words not literally present in a document can still match if the model has
+learned that the concepts are related. This is a key advantage over pure
+keyword systems, which require exact term overlap.
+
+The quality of a dense retriever depends heavily on the embedding model that
+was trained. Small general-purpose models like BGE and the ones shipped with
+FastEmbed balance accuracy against latency and memory. Because they run on
+CPU via ONNX, they are practical for local-first applications that cannot rely
+on a GPU or a hosted embedding API.

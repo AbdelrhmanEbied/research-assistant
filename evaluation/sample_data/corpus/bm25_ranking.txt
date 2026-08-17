@@ -1,0 +1,20 @@
+BM25 is a classic sparse retrieval algorithm that ranks documents by keyword
+overlap with the query.
+
+Each term in a document gets a score based on two factors. The first is term
+frequency: the more often a term appears in a document, the more relevant the
+document is likely to be, though the contribution saturates so a term appearing
+fifty times is not fifty times as valuable as one appearing once. The second is
+inverse document frequency: rare terms carry more signal than common ones, so a
+match on an uncommon technical term boosts a document far more than a match on
+a word like "the".
+
+BM25 is derived from the older TF-IDF weighting scheme and improves on it by
+normalizing for document length, since a long document naturally contains more
+instances of any given word. Shorter documents that mention a term are treated
+as more specific and score higher.
+
+Sparse retrieval with BM25 is fast and deterministic, and it is excellent for
+exact, rare, or technical terms that appear verbatim in a document. Its main
+weakness is vocabulary mismatch: a query phrased differently from the source
+text will not match, which is exactly the problem dense embeddings solve.

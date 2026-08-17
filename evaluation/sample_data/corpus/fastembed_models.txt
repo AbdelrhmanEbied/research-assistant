@@ -1,0 +1,22 @@
+FastEmbed is a lightweight embedding library built for speed and small
+footprints.
+
+It wraps ONNX runtime to run embedding models locally on the CPU, with no GPU
+and no external embedding API required. This makes it a natural fit for
+local-first applications where privacy matters and where sending every document
+to a hosted service would be impractical or slow.
+
+FastEmbed ships a small set of well-known open models. For dense embeddings it
+provides compact BGE models tuned for semantic similarity, and for sparse
+retrieval it includes a BM25-based sparse embedding model. It also provides a
+cross-encoder reranker that can reorder an initial set of retrieved chunks.
+
+Because the models are stored locally on disk after the first download, they
+can be pre-baked into a container image at build time. The Dockerfile for this
+project does exactly that with a build flag, so a freshly started pod can begin
+serving retrieval requests immediately without waiting on a model download.
+
+The trade-off is that very large, state-of-the-art embedding models are not
+available, so the absolute quality ceiling is lower than the biggest hosted
+models. For most document retrieval workloads the accuracy is more than
+adequate.

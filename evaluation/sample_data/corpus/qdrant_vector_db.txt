@@ -1,0 +1,22 @@
+Qdrant is a vector database designed to store embeddings and search them by
+similarity at scale.
+
+Data is organized into collections. Each collection declares a vector
+configuration: the number of dimensions and the distance metric, typically
+cosine. Points in a collection carry a vector plus an arbitrary JSON payload
+with metadata, so a search can both rank by similarity and filter on payload
+fields such as document id, conversation id, or source type.
+
+Modern Qdrant supports hybrid vectors. A collection can hold a dense vector
+and a sparse vector on the same point, and a single query can prefetch results
+from both, then fuse them with reciprocal rank fusion. This is what this
+project uses to run dense, sparse, and hybrid search through the same index.
+
+For local-first use, Qdrant has an embedded mode that stores the index on
+disk in a directory instead of running a separate server. This project embeds
+Qdrant at a path under the data directory, which keeps the whole application
+in one container and lets the index live on a persistent volume.
+
+The embedded mode does have limits. Only one process can open the store at a
+time, which is fine for a single-replica deployment, and very large collections
+perform better on a dedicated Qdrant server.

@@ -1,0 +1,23 @@
+Retrieval-augmented generation, or RAG, combines a retriever with a language
+model so the model can answer using your own documents.
+
+The pipeline is simple. First, the user's question is used to retrieve a small
+set of relevant chunks from a knowledge base. Second, those chunks are packed
+into a prompt as retrieved context. Third, the language model generates an
+answer that is grounded in that context rather than relying only on what it
+learned during training.
+
+Grounding is the whole point. Because the model reads the actual source text,
+its answers can cite specific documents, stay up to date with the latest
+content, and include private information that was never in its training data.
+It also reduces hallucination, since the model is instructed to base its answer
+on the provided context and to say so when the answer is not present.
+
+The quality of a RAG system depends on both stages. If retrieval returns the
+wrong chunks, the model cannot answer well no matter how strong it is. This is
+why evaluating the retriever in isolation, with metrics like hit rate and mean
+reciprocal rank, is a meaningful first step before judging the final answers.
+
+The generation stage can be evaluated separately too, by checking whether the
+answer stays faithful to the retrieved context and whether it actually
+addresses the question.

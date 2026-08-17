@@ -367,15 +367,25 @@ Run `uv run python scripts/evaluate_rag.py --help` for all options.
 
 ### Baseline results
 
-Run on `evaluation/sample_data/` (3 documents, one clearly relevant per query, top-k 3, no rerank):
+Run on `evaluation/sample_data/` (10 documents on overlapping topics, 20 queries with document- and chunk-level ground truth, top-k 3, no rerank). Chunk ids are deterministic (`uuid5` of `document_id:index`), so the chunk-level labels stay reproducible across runs. Full report: `evaluation/sample_data/REPORT.md` (+ raw JSON in `report.json`).
+
+Document-level:
 
 | search type | hit_rate | recall@3 | precision@3 | mrr | ndcg@3 |
 |---|---|---|---|---|---|
-| dense | 1.000 | 1.000 | 0.333 | 1.000 | 1.000 |
-| sparse | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| hybrid | 1.000 | 1.000 | 0.333 | 1.000 | 1.000 |
+| dense | 0.950 | 0.950 | 0.525 | 0.925 | 0.932 |
+| sparse | 1.000 | 1.000 | 0.492 | 1.000 | 0.996 |
+| hybrid | 1.000 | 1.000 | 0.525 | 0.950 | 0.959 |
 
-Perfect hit/recall/MRR/NDCG confirm the pipeline (chunking, embedding, Qdrant search) works end-to-end. Treat these as a **smoke test**, not real quality signal: the sample corpus has one clearly relevant document per query, so it does not stress retrieval discrimination. `precision@3` is capped at ~0.33 because only one of the three returned documents is relevant; sparse scores higher because BM25 returns only exact-match chunks. Build a larger dataset with overlapping topics and chunk-level labels for meaningful numbers.
+Chunk-level:
+
+| search type | hit_rate | recall@3 | precision@3 | mrr | ndcg@3 |
+|---|---|---|---|---|---|
+| dense | 0.950 | 0.950 | 0.367 | 0.900 | 0.909 |
+| sparse | 1.000 | 0.975 | 0.367 | 0.942 | 0.936 |
+| hybrid | 1.000 | 0.975 | 0.367 | 0.900 | 0.910 |
+
+The numbers are high because the corpus is small and each query has at most two relevant documents, but they are no longer trivially perfect: the overlapping topics give the near-miss queries real discrimination. Sparse (BM25) is strong because the corpus uses distinctive technical terms that match verbatim. Dense misses one document-level query and has the lowest MRR, and hybrid recovers it — which is exactly why hybrid is the default. Chunk-level MRR/recall run slightly below document-level for every strategy: retrieval almost always finds the right document, but the exact chunk is pinpointed a little less often. `precision@3` stays low (~0.5 doc-level, ~0.37 chunk-level) because at most one or two of the three returned documents are relevant by construction; treat it as a capacity ceiling, not a regression.
 
 ## Deploying to Kubernetes
 

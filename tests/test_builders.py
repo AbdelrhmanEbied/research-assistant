@@ -1,5 +1,10 @@
+import uuid
+
+from langchain_core.documents import Document
+
 from agent.agent_schemas import PromptMode
 from rag.builders import ContextBuilder, PromptBuilder
+from rag.chunker import DocumentChunker
 from rag.rag_schemas import Context, KnowledgeResult, RetrievedDocuments, build_sources
 
 
@@ -143,3 +148,25 @@ def test_build_sources_includes_rag_and_web_metadata():
     # no internal search objects leak into the citation
     assert "score" not in rag_source
     assert "raw_content" not in web_source
+
+
+def test_chunker_assigns_deterministic_chunk_ids_per_document():
+    text = "This is a document about hybrid retrieval systems. " * 60
+    documents = [
+        Document(page_content=text, metadata={"document_id": "doc-a", "name": "a.txt"}),
+        Document(page_content=text, metadata={"document_id": "doc-b", "name": "b.txt"}),
+    ]
+
+    chunks = DocumentChunker(chunk_size=500, chunk_overlap=0).chunk(documents)
+
+    assert len(chunks) > 2
+    chunk_ids_a = [c.metadata["chunk_id"] for c in chunks if c.metadata["document_id"] == "doc-a"]
+    chunk_ids_b = [c.metadata["chunk_id"] for c in chunks if c.metadata["document_id"] == "doc-b"]
+    expected_a = [
+        str(uuid.uuid5(uuid.NAMESPACE_DNS, f"doc-a:{i}")) for i in range(len(chunk_ids_a))
+    ]
+    expected_b = [
+        str(uuid.uuid5(uuid.NAMESPACE_DNS, f"doc-b:{i}")) for i in range(len(chunk_ids_b))
+    ]
+    assert chunk_ids_a == expected_a
+    assert chunk_ids_b == expected_b

@@ -1,0 +1,19 @@
+Reciprocal rank fusion, or RRF, is a way to combine the results of several
+retrieval methods into a single ranked list.
+
+The key insight is that the scores produced by different retrievers are not
+directly comparable. A dense model returns cosine similarities between zero and
+one, while a sparse model returns BM25 scores that can range widely and have no
+natural bound. Instead of blending those raw scores, RRF converts each result
+into a reciprocal rank and sums them.
+
+For each document that appears in any of the result lists, RRF assigns a score
+of 1 divided by a constant plus the document's position in that list. Documents
+that rank highly in several lists accumulate a larger fused score, while
+documents that appear in only one list rank lower. The constant smooths the
+curve so that moving from rank one to rank two does not produce a huge jump.
+
+Because RRF is purely rank based, no score calibration is required, which makes
+it simple and robust in practice. This is why hybrid retrieval systems, which
+combine dense and sparse results, almost always use reciprocal rank fusion
+rather than trying to align the underlying scores.
