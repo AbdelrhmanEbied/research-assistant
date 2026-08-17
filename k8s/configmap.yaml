@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: assistant-config
+  namespace: research-assistant
+  labels:
+    app: research-assistant
+data:
+  LLM_MODEL: gemini-3.5-flash-lite
+  LLM_PROVIDER: google_genai
+  TELEMETRY_ENABLED: "true"
+  ENVIRONMENT: production
+  APP_VERSION: 0.1.0
+  DATA_DIR: /data

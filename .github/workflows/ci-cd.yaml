@@ -73,7 +73,28 @@ jobs:
               with:
                   context: .
                   push: true
+                  build-args: |
+                      BAKE_MODELS=true
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
+
+    deploy:
+        name: Deploy to Kubernetes
+        needs: build-and-push
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        runs-on: self-hosted
+
+        permissions:
+            contents: read
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Install kubectl
+              uses: azure/setup-kubectl@v4
+
+            - name: Deploy
+              run: |
+                  IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA::7}" bash scripts/deploy.sh

@@ -18,3 +18,5 @@ checkpoints.db*
 telemetry.db
 # Local runtime settings (may hold API keys)
 settings.json
+# Kubernetes secrets derived from .env at deploy time
+k8s/secret.env

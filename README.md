@@ -2,11 +2,13 @@
 
 A local-first AI research assistant with a clean web UI for chatting with LLMs, uploading documents, and searching your knowledge base with hybrid RAG. Your chats, documents, and settings live on your own machine. Models, retrieval options, and API keys are configurable from a Settings page — no code editing required.
 
-[![CI/CD](https://github.com/AbdelrhmanEbied/research-assistant/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/AbdelrhmanEbied/research-assistant/actions/workflows/ci-cd.yml)
+[![CI/CD](https://github.com/AbdelrhmanEbied/research-assistant/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/AbdelrhmanEbied/research-assistant/actions/workflows/ci-cd.yaml)
 
 ## Demo
 
 ![Demo](assets/demo.gif)
+
+> The demo GIF is from an early release — the current version adds Thinking mode, agent tools, and much more (see the features below).
 
 ## What it does
 
@@ -70,7 +72,8 @@ This project was built to learn and practice:
 
 * Telemetry: local SQLite analytics store and in-app dashboard
 * Dockerized: single-image container with pre-baked embedding models and health checks
-* CI/CD pipeline: lint, format, tests, and automated image publishing to GHCR
+* Kubernetes-ready: manifests under `k8s/` deploy a single-replica app with a persistent volume, health probes, and ingress
+* CI/CD pipeline: lint, format, tests, image publishing to GHCR, and auto-deploy to Kubernetes
 
 ## Tech Stack
 
@@ -191,7 +194,16 @@ research-assistant/
 │   ├── test_telemetry.py
 │   └── test_tools.py
 ├── .github/
-│   └── workflows/ci-cd.yml
+│   └── workflows/ci-cd.yaml
+├── k8s/
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── ingress.yaml
+│   ├── namespace.yaml
+│   ├── pvc.yaml
+│   └── service.yaml
+├── scripts/
+│   └── deploy.sh
 ├── .env.example
 ├── .dockerignore
 ├── Dockerfile
@@ -313,12 +325,43 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
+## Deploying to Kubernetes
+
+Kubernetes manifests live in `k8s/` and deploy a single-replica app backed by a persistent volume — the app keeps all state (SQLite, settings, and the embedded Qdrant store) on a 1Gi PVC mounted at `/data`.
+
+* `namespace.yaml` — the `research-assistant` namespace
+* `configmap.yaml` — non-secret defaults (model, provider, telemetry, environment)
+* `deployment.yaml` — one replica with a `Recreate` strategy (required for the ReadWriteOnce volume), liveness/readiness probes on `/health`, and resource requests/limits
+* `service.yaml` — internal ClusterIP service on port 8000
+* `ingress.yaml` — routes your domain to the app through the nginx ingress controller, with long proxy timeouts and buffering disabled for response streaming
+* `pvc.yaml` — 1Gi `ReadWriteOnce` persistent volume for `/data`
+
+### Secrets
+
+API keys are never committed. `scripts/deploy.sh` reads `.env` (gitignored), builds a Kubernetes Secret from the four `*_API_KEY` values, applies it, and deletes the temporary file afterwards. The Deployment injects them via `envFrom.secretRef`. Note that a Secret is only base64-encoded, not encrypted — anyone with cluster read access can decode it. Use Sealed Secrets or an external secrets operator for production hardening.
+
+### Deploy
+
+```bash
+# first time: creates the Secret from .env and applies all manifests
+bash scripts/deploy.sh
+
+# use a specific image instead of :latest
+IMAGE="ghcr.io/<owner>/research-assistant:<tag>" bash scripts/deploy.sh
+
+# preview without ingress
+kubectl port-forward svc/research-assistant 8000:8000 -n research-assistant
+```
+
+For local kind/minikube there is no cloud load balancer, so point the ingress host at the cluster with `/etc/hosts` and port-forward the nginx controller service.
+
 ## CI/CD
 
-A GitHub Actions workflow (`.github/workflows/ci-cd.yml`) runs on every push to `main`, `v*` tags, and all pull requests:
+A GitHub Actions workflow (`.github/workflows/ci-cd.yaml`) runs on every push to `main`, `v*` tags, and all pull requests:
 
 * **Lint & Test** — sets up Python 3.14 with `uv`, installs the locked dependencies, then runs `ruff check`, `ruff format --check`, and `pytest`.
-* **Build & Push** — on pushes only (after lint/tests pass), builds the Docker image with BuildKit caching and pushes it to the GitHub Container Registry (`ghcr.io/<owner>/research-assistant`) tagged with the short commit SHA, `latest` on the default branch, and semver tags for `v*` releases.
+* **Build & Push** — on pushes only (after lint/tests pass), builds the Docker image with BuildKit caching and `BAKE_MODELS=true` (so the embedding models ship inside the image) and pushes it to the GitHub Container Registry (`ghcr.io/<owner>/research-assistant`) tagged with the short commit SHA, `latest` on the default branch, and semver tags for `v*` releases.
+* **Deploy** — on pushes to `main` only (after the image is built), deploys the new image to Kubernetes from a self-hosted runner using `scripts/deploy.sh`. The runner must have `kubectl` access to the cluster and a `.env` file with your API keys; secrets are built from it at deploy time and never stored in the repository.
 
 ## Credits
 

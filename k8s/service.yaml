@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: research-assistant
+  namespace: research-assistant
+spec:
+  type: ClusterIP
+  selector:
+    app: research-assistant
+  ports:
+    - port: 8000
+      targetPort: 8000
