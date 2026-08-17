@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
     push:
-        branches: [main, master]
+        branches: [master]
         tags: ["v*"]
     pull_request:
 
@@ -75,7 +75,7 @@ jobs:
     build-and-push:
         name: Build & Push Docker Image
         needs: [test, rag-eval]
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         runs-on: ubuntu-latest
 
         permissions:
@@ -120,7 +120,7 @@ jobs:
     deploy:
         name: Deploy to Kubernetes
         needs: build-and-push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         runs-on: self-hosted
 
         permissions:
