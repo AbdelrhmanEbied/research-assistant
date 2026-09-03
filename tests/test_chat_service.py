@@ -11,7 +11,7 @@ import app.backend.services.chat_service as cs
 from agent.llms import get_request_api_key
 from app.backend.database.base import Base
 from app.backend.database.models import Conversation
-from app.backend.database.repositories import ConversationRepository, MessageRepository
+from app.backend.database.repositories import MessageRepository
 from app.backend.schemas.chat import AgentMode, ChatRequest, LLMConfig, RegenerateRequest
 from app.backend.services.chat_service import (
     DETAILS_MARKER,

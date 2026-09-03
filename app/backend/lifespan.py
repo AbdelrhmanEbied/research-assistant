@@ -2,19 +2,13 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 from agent.graph import build_agent_graph
 from agent.web_service import create_web_search_service
 from app.backend.database.base import Base
 from app.backend.database.database import engine
-from app.backend.database.models import (
-    Conversation,
-    ConversationDocument,
-    Document,
-    Message,
-)
 from rag.rag_service import create_rag_service
 from rag.reranker import Reranker
 from telemetry import init_telemetry
