@@ -55,7 +55,7 @@ This project was built to learn and practice:
 * Per-request mode/source overrides and retrieval controls (search type, rerank, limit, web search depth)
 * Local chat UI with streaming responses, citations, and per-response details
 * **Single send/stop button** — the composer button toggles between sending a message and stopping generation while the model is replying
-* Chat history stored locally with SQLite and SQLAlchemy (WAL mode)
+* Chat history stored locally with PostgreSQL and async SQLAlchemy
 * Conversation search, rename, export, and paginated history
 * Regenerate answers
 
@@ -71,21 +71,22 @@ This project was built to learn and practice:
 ### Operations
 
 * Telemetry: local SQLite analytics store and in-app dashboard
-* Dockerized: single-image container with pre-baked embedding models and health checks
+* Dockerized: multi-service stack (app, PostgreSQL, Qdrant) with pre-baked embedding models
 * Kubernetes-ready: manifests under `k8s/` deploy a single-replica app with a persistent volume, health probes, and ingress
 * CI/CD pipeline: lint, format, tests, image publishing to GHCR, and auto-deploy to Kubernetes
 
 ## Tech Stack
 
 * FastAPI
-* SQLAlchemy
-* SQLite
+* SQLAlchemy (async)
+* PostgreSQL
 * LangChain
 * LangGraph
 * Google Gemini / OpenAI / Anthropic Claude
 * Qdrant
 * FastEmbed
 * Tavily
+* Alembic
 * HTML, CSS, JavaScript
 * Docker
 
@@ -97,7 +98,7 @@ This project was built to learn and practice:
 4. The LangGraph agent classifies the request — or honors your explicit overrides — retrieves context from your documents (Qdrant) or the web (Tavily) as needed, and streams the answer back.
 5. In **Thinking** mode the request is routed through a ReAct loop: the model reasons (streaming its thoughts), optionally calls local tools, then produces a final answer. The backend tags each streamed event so the frontend can separate thinking content from the final answer.
 6. Documents are embedded with FastEmbed and stored in Qdrant for hybrid search.
-7. Chats, messages, and metadata are stored locally; every request is recorded in the local telemetry store.
+7. Chats, messages, and metadata are stored in PostgreSQL; every request is recorded in the local telemetry store.
 
 ### Thinking-mode streaming pipeline
 
@@ -123,6 +124,11 @@ research-assistant/
 │   ├── tools.py            # calculator, python_code_executor, document tools
 │   ├── web_service.py
 │   └── __init__.py
+├── alembic/
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions/
+├── alembic.ini
 ├── app/
 │   ├── backend/
 │   │   ├── main.py
@@ -131,7 +137,6 @@ research-assistant/
 │   │   ├── database/
 │   │   │   ├── base.py
 │   │   │   ├── database.py
-│   │   │   ├── migrations.py
 │   │   │   ├── models.py
 │   │   │   └── repositories.py
 │   │   ├── routers/
@@ -236,11 +241,14 @@ Open `http://localhost:8000`.
 
 What the compose setup does:
 
-* builds the image with `BAKE_MODELS=true`, pre-downloading the FastEmbed embedding, sparse (BM25), and reranker models into the image so the first run starts fast
+* starts three services: **app**, **postgres** (PostgreSQL 16), and **qdrant** (vector search)
+* builds the app image with `BAKE_MODELS=true`, pre-downloading the FastEmbed embedding, sparse (BM25), and reranker models into the image so the first run starts fast
 * maps port `8000` on your host to the app
 * loads your keys from `.env`
-* persists data in two named volumes:
-  * `research_data` — chats, documents, uploads, and the telemetry store (`/data`)
+* persists data in named volumes:
+  * `pgdata` — PostgreSQL data
+  * `qdrant_data` — Qdrant vector store
+  * `research_data` — chats, documents, uploads (`/data`)
   * `fastembed_cache` — model downloads (`/home/appuser/.cache/fastembed`)
 
 Useful commands:
@@ -256,7 +264,7 @@ docker compose pull               # pull a prebuilt image instead of building
 
 ### Option B — Run locally with uv
 
-Requires Python 3.14+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.14+, [uv](https://docs.astral.sh/uv/), and a running PostgreSQL instance.
 
 ```bash
 git clone https://github.com/AbdelrhmanEbied/research-assistant.git
@@ -268,7 +276,10 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 uv sync
 
 cp .env.example .env
-# fill in your API keys (see "Environment variables" below)
+# fill in DATABASE_URL and your API keys
+
+# start PostgreSQL and Qdrant (if not already running)
+docker compose up -d postgres qdrant
 
 uv run uvicorn app.backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
@@ -283,6 +294,7 @@ Copy `.env.example` to `.env` and fill in your keys. None are strictly required 
 
 | Variable | Purpose |
 |---|---|
+| `DATABASE_URL` | PostgreSQL connection string (default: `postgresql+asyncpg://postgres:postgres@localhost:5432/research_assistant`) |
 | `GEMINI_API_KEY` | Google Gemini API key |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API key |
@@ -389,7 +401,7 @@ The numbers are high because the corpus is small and each query has at most two 
 
 ## Deploying to Kubernetes
 
-Kubernetes manifests live in `k8s/` and deploy a single-replica app backed by a persistent volume — the app keeps all state (SQLite, settings, and the embedded Qdrant store) on a 1Gi PVC mounted at `/data`.
+Kubernetes manifests live in `k8s/` and deploy a single-replica app backed by a persistent volume — the app keeps all state (settings, and the embedded Qdrant store) on a 1Gi PVC mounted at `/data`. PostgreSQL should be deployed separately or use a managed service.
 
 * `namespace.yaml` — the `research-assistant` namespace
 * `configmap.yaml` — non-secret defaults (model, provider, telemetry, environment)
