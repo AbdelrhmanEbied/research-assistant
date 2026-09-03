@@ -1,4 +1,23 @@
 services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: research_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
   app:
     build:
       context: .
@@ -9,6 +28,11 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/research_assistant
+    depends_on:
+      - postgres
+      - qdrant
     volumes:
       - research_data:/data
       - fastembed_cache:/home/appuser/.cache/fastembed
@@ -17,3 +41,5 @@ services:
 volumes:
   research_data:
   fastembed_cache:
+  pgdata:
+  qdrant_data:

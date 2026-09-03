@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "aiofiles>=25.1.0",
-    "aiosqlite>=0.22.1",
+    "alembic>=1.14.0",
+    "asyncpg>=0.31.0",
     "fastapi[standard]>=0.140.7",
     "fastembed>=0.8.0",
     "google-api-core>=2.33.0",
@@ -18,9 +19,10 @@ dependencies = [
     "langchain-qdrant>=1.1.0",
     "langchain-text-splitters>=1.1.2",
     "langgraph>=1.2.9",
-    "langgraph-checkpoint-sqlite>=3.1.1",
+    "langgraph-checkpoint-postgres>=2.0.0",
     "loguru>=0.7.3",
     "orjson>=3.11.9",
+    "psycopg[binary]>=3.3.0",
     "pydantic>=2.13.4",
     "pymupdf>=1.28.0",
     "pytest>=9.1.1",
@@ -30,7 +32,7 @@ dependencies = [
     "qdrant-client>=1.18.0",
     "requests>=2.34.2",
     "rich>=15.0.0",
-    "sqlalchemy>=2.0.51",
+    "sqlalchemy[asyncio]>=2.0.51",
     "tavily-python>=0.7.27",
     "tenacity>=9.1.4",
     "tiktoken>=0.13.0",
@@ -44,6 +46,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.22.1",
     "ruff>=0.6.0",
 ]
 
@@ -60,3 +63,6 @@ src = ["."]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "C4"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

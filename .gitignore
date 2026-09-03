@@ -20,3 +20,4 @@ telemetry.db
 settings.json
 # Kubernetes secrets derived from .env at deploy time
 k8s/secret.env
+archive
