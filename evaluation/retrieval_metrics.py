@@ -14,12 +14,10 @@ def _top_n(ranked: Sequence[str], k: int | None) -> list[str]:
 
 
 def hit_rate(ranked: Sequence[str], relevant: set[str], k: int | None = None) -> float:
-    """1.0 if any relevant item appears in the top ``k``, else 0.0."""
     return 1.0 if any(rid in relevant for rid in _top_n(ranked, k)) else 0.0
 
 
 def recall_at_k(ranked: Sequence[str], relevant: set[str], k: int | None = None) -> float:
-    """Fraction of relevant items retrieved in the top ``k``."""
     if not relevant:
         return 0.0
     top = _top_n(ranked, k)
@@ -27,7 +25,6 @@ def recall_at_k(ranked: Sequence[str], relevant: set[str], k: int | None = None)
 
 
 def precision_at_k(ranked: Sequence[str], relevant: set[str], k: int | None = None) -> float:
-    """Fraction of the top ``k`` items that are relevant."""
     top = _top_n(ranked, k)
     if not top:
         return 0.0
@@ -35,7 +32,6 @@ def precision_at_k(ranked: Sequence[str], relevant: set[str], k: int | None = No
 
 
 def reciprocal_rank(ranked: Sequence[str], relevant: set[str]) -> float:
-    """1 / rank of the first relevant item, 0.0 if none is retrieved."""
     for rank, rid in enumerate(ranked, start=1):
         if rid in relevant:
             return 1.0 / rank
@@ -43,7 +39,6 @@ def reciprocal_rank(ranked: Sequence[str], relevant: set[str]) -> float:
 
 
 def ndcg_at_k(ranked: Sequence[str], relevant: set[str], k: int | None = None) -> float:
-    """Normalized DCG with binary gains on the top ``k`` items."""
     if not relevant:
         return 0.0
     top = _top_n(ranked, k)
@@ -60,12 +55,6 @@ def _chunk_ids(documents: Sequence[RetrievedDocuments]) -> list[str]:
 
 
 def _document_ids(documents: Sequence[RetrievedDocuments]) -> list[str]:
-    """Unique document ids in retrieval order.
-
-    A document may contribute several chunks to the ranking; for document-level
-    metrics only its first occurrence matters, otherwise duplicates inflate
-    DCG beyond the ideal and skew precision.
-    """
     seen: set[str] = set()
     ids: list[str] = []
     for doc in documents:
@@ -81,11 +70,6 @@ def evaluate_retrieval(
     item: EvalItem,
     k: int,
 ) -> tuple[Metrics | None, Metrics | None]:
-    """Score the retrieved ``documents`` against one dataset item.
-
-    Returns ``(chunk_metrics, document_metrics)``; each is ``None`` when the
-    item does not carry that ground-truth type.
-    """
     chunk_metrics = None
     if item.relevant_chunk_ids:
         ranked = _chunk_ids(documents)
@@ -114,7 +98,6 @@ def evaluate_retrieval(
 
 
 def average_metrics(rows: Iterable[Metrics]) -> Metrics | None:
-    """Mean of each metric across ``rows`` (None when there are no rows)."""
     rows = [row for row in rows if row]
     if not rows:
         return None

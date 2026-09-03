@@ -68,13 +68,6 @@ def _snippet_of(text: str, limit: int = 220) -> str | None:
 
 
 def build_sources(result: KnowledgeResult) -> list[dict]:
-    """Flatten the reranked documents into plain, JSON-safe citation dicts.
-
-    RAG sources carry a document ``name``/``document_id`` plus page/chunk
-    information; web sources carry a ``title``/``url`` plus domain and a short
-    snippet. Only documents actually retrieved and used are included. Internal
-    payload keys are never exposed.
-    """
     sources = []
     for doc in result.reranked_documents:
         metadata = doc.metadata or {}

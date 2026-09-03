@@ -60,12 +60,6 @@ class Reranker:
         documents: Sequence[RetrievedDocuments],
         top_k: int = 5,
     ) -> list[RetrievedDocuments]:
-        """Rerank so every distinct document contributes before relevance fills.
-
-        Walks the relevance-ranked list once, greedily taking the top chunk of
-        each distinct ``document_id``, then fills any remaining slots in pure
-        relevance order. With a single document this degenerates to ``rerank``.
-        """
         with get_current_tracker().span(
             "rerank_diversified",
             span_type="RERANKER",

@@ -15,20 +15,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class Span:
-    """A named, timed segment of a request (retrieve, rag_prepare, ...)."""
-
     name: str
     span_type: str
     duration_ms: float = 0.0
 
 
 class TelemetryTracker:
-    """Request-scoped telemetry sink backed by a local SQLite store.
-
-    Every call is fail-safe: persistence errors are logged at debug level and
-    never raised, so telemetry can never break the application.
-    """
-
     def __init__(
         self,
         *,
@@ -85,11 +77,9 @@ class TelemetryTracker:
         self._tags[name] = str(value)
 
     def metrics(self) -> dict[str, float]:
-        """Snapshot of recorded metrics (used to render response details)."""
         return dict(self._metrics)
 
     def tags(self) -> dict[str, str]:
-        """Snapshot of recorded tags (used to render response details)."""
         return dict(self._tags)
 
     def timed(self, metric: str) -> TimedSpan:
@@ -150,8 +140,6 @@ class TelemetryTracker:
 
 
 class NullTelemetryTracker(TelemetryTracker):
-    """No-op tracker used when no request scope is active."""
-
     def __init__(self) -> None:
         self.request_id = ""
         self._config = TelemetryConfig(enabled=False)
@@ -164,8 +152,6 @@ class NullTelemetryTracker(TelemetryTracker):
 
 
 class TimedSpan:
-    """Timing + optional span record (sync and async)."""
-
     __slots__ = ("_tracker", "_name", "_span_type", "_metric", "_span", "_started_at")
 
     def __init__(

@@ -13,7 +13,6 @@ def _config_key(search_type: str, rerank: bool) -> str:
 
 
 def aggregate_retrieval(results: list[RetrievalResult]) -> dict[str, dict[str, float]]:
-    """Average retrieval metrics per (search type, rerank, ground-truth type)."""
     buckets: dict[tuple[str, str], list[dict[str, float]]] = defaultdict(list)
 
     for result in results:
@@ -35,7 +34,6 @@ def aggregate_retrieval(results: list[RetrievalResult]) -> dict[str, dict[str, f
 
 
 def aggregate_quality(results: list[QualityResult]) -> dict[str, float]:
-    """Average LLM-as-judge scores across the evaluated queries."""
     fields = ("faithfulness", "answer_relevance", "context_relevance")
     values: dict[str, list[float]] = {field: [] for field in fields}
 

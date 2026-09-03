@@ -13,7 +13,6 @@ from settings import reset_settings_store
 
 @pytest.fixture(autouse=True)
 def _isolated_settings():
-    """Drop any process-wide settings store so env defaults are authoritative."""
     reset_settings_store()
     yield
     reset_settings_store()

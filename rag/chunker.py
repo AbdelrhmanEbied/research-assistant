@@ -28,9 +28,6 @@ class DocumentChunker:
     ) -> list[Document]:
         chunks = self.splitter.split_documents(documents)
 
-        # Deterministic per-document chunk ids (uuid5 of ``<document_id>:<index>``)
-        # so chunk-level evaluation datasets stay reproducible. Qdrant requires
-        # valid UUID point ids, hence uuid5 instead of a plain string.
         counters: dict[str, int] = {}
         for chunk in chunks:
             document_id = chunk.metadata.get("document_id")

@@ -10,8 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class FaithfulnessScore(BaseModel):
-    """Share of the answer's factual claims supported by the retrieved context."""
-
     score: float = Field(
         ge=0,
         le=1,
@@ -22,8 +20,6 @@ class FaithfulnessScore(BaseModel):
 
 
 class RelevanceScore(BaseModel):
-    """Generic 0-1 relevance judgement with a short justification."""
-
     score: float = Field(ge=0, le=1)
     reasoning: str = Field(default="", description="One sentence explaining the score.")
 

@@ -65,8 +65,6 @@ class FakeGenLLM:
 
 
 class ThinkingGenLLM:
-    """Scripted generation LLM that supports ``bind_tools`` and tool loops."""
-
     def __init__(self, responses):
         self.responses = list(responses)
         self.calls = 0
@@ -167,7 +165,6 @@ def test_graph_passes_balanced_history_into_prompt(monkeypatch):
     )
 
     assert result["response"] == "the answer"
-    # the rag.prepare call must have received the full balanced history
     prepare_kwargs = rag.calls[0]
     assert prepare_kwargs["history"] == history
     assert prepare_kwargs["retrieve"] is False
@@ -291,7 +288,6 @@ def test_graph_respects_chat_override_skips_retrieval(monkeypatch):
     )
 
     assert search.calls == []
-    # NONE still flows through rag.prepare but without retrieval
     assert len(rag.calls) == 1
     assert rag.calls[0]["retrieve"] is False
     assert gen.last_prompt == "PROMPT"
@@ -448,9 +444,7 @@ def test_thinking_mode_runs_tool_loop_then_final_answer(monkeypatch):
     assert result["response"] == "the answer"
     assert gen.calls == 2
     assert gen.bound is True
-    # the calculator tool actually executed inside the graph loop
     assert any(getattr(m, "content", None) == "4" for m in result["messages"])
-    # the second reason step saw the tool result before answering
     assert any(isinstance(m, ToolMessage) for m in gen.last_messages)
 
 
@@ -490,8 +484,6 @@ def test_thinking_mode_messages_reset_across_invocations(monkeypatch):
     )
 
     assert second["response"] == "second answer"
-    # classify_request wiped the previous turn's message list, so no stale
-    # tool result leaks into the new run
     contents = [getattr(m, "content", "") for m in second["messages"]]
     assert "9" not in contents
 
@@ -516,7 +508,6 @@ def test_fast_mode_never_enters_tool_loop(monkeypatch):
     )
 
     assert result["response"] == "fast answer"
-    # FakeGenLLM has no bind_tools; the thinking path would have raised
     assert gen.last_prompt == "PROMPT"
 
 
@@ -543,7 +534,6 @@ def test_thinking_mode_configures_gemini_high_and_include_thoughts(monkeypatch):
         config={"configurable": {"thread_id": "1"}},
     )
 
-    # every reason step requests Gemini's deepest thinking AND the thoughts back
     assert gen.last_kwargs == {"thinking_level": "high", "include_thoughts": True}
 
 

@@ -14,8 +14,6 @@ load_dotenv()
 tavily_api_key = os.getenv("TAVILY_API_KEY")
 tavily_client = TavilyClient(api_key=tavily_api_key)
 
-#: Tavily search depths. ``basic`` is faster/cheaper, ``advanced`` is more
-#: thorough and takes longer.
 SEARCH_DEPTHS = ("basic", "advanced")
 DEFAULT_SEARCH_DEPTH = "basic"
 

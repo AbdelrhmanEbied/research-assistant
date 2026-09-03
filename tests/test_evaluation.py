@@ -26,9 +26,6 @@ def make_doc(document_id, chunk_id, text="content", score=0.5):
     )
 
 
-# --- metric correctness ----------------------------------------------
-
-
 def test_hit_rate():
     ranked = ["a", "b", "c"]
     assert hit_rate(ranked, {"b"}, k=3) == 1.0
@@ -62,12 +59,8 @@ def test_ndcg_at_k():
     dcg = 1 / math.log2(2) + 1 / math.log2(4)
     idcg = 1 / math.log2(2) + 1 / math.log2(3)
     assert ndcg_at_k(ranked, relevant, k=3) == pytest.approx(dcg / idcg)
-    # perfectly ranked → 1.0
     assert ndcg_at_k(["a", "c"], relevant, k=2) == pytest.approx(1.0)
     assert ndcg_at_k(ranked, set(), k=3) == 0.0
-
-
-# --- evaluate_retrieval ----------------------------------------------
 
 
 def test_evaluate_retrieval_chunk_and_document_metrics():
@@ -84,10 +77,8 @@ def test_evaluate_retrieval_chunk_and_document_metrics():
     assert chunk["recall"] == 1.0
     assert chunk["precision"] == pytest.approx(2 / 3)
     assert chunk["mrr"] == 1.0
-    # ranked c1, c2, c3 with relevant {c1, c3}
     assert chunk["ndcg"] == pytest.approx((1 + 1 / math.log2(4)) / (1 + 1 / math.log2(3)))
 
-    # document ids are deduplicated → d1, d2
     assert document["hit_rate"] == 1.0
     assert document["recall"] == 1.0
     assert document["precision"] == pytest.approx(0.5)
@@ -107,9 +98,6 @@ def test_average_metrics():
     rows = [{"a": 1.0, "b": 0.5}, {"a": 0.0, "b": 0.5}]
     assert average_metrics(rows) == {"a": 0.5, "b": 0.5}
     assert average_metrics([]) is None
-
-
-# --- dataset loader ----------------------------------------------------
 
 
 def test_load_dataset(tmp_path):
@@ -133,9 +121,6 @@ def test_load_dataset_rejects_empty(tmp_path):
     path.write_text("")
     with pytest.raises(ValueError, match="No evaluation items"):
         load_dataset(path)
-
-
-# --- runner -------------------------------------------------------------
 
 
 class FakeService:
@@ -174,7 +159,6 @@ def test_evaluate_retrieval_runs_each_search_type():
     assert {r.search_type for r in results} == {"dense", "hybrid"}
     assert all(r.chunk_metrics is None for r in results)
     assert all(r.document_metrics["hit_rate"] == 1.0 for r in results)
-    # each item was queried with the conversation scope and search type
     for call in service.calls:
         assert call["mode"] is not None
         assert call["limit"] == 3
@@ -213,9 +197,6 @@ def test_evaluate_quality_uses_generation_llm_and_judges(monkeypatch):
     assert quality[0].faithfulness == 0.9
     assert quality[0].answer_relevance == 0.8
     assert quality[0].context_relevance == 0.7
-
-
-# --- report --------------------------------------------------------------
 
 
 def test_build_report_and_markdown():

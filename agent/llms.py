@@ -15,13 +15,8 @@ DEFAULT_MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
 DEFAULT_PROVIDER = os.getenv("LLM_PROVIDER", "google_genai")
 DEFAULT_API_KEY = os.getenv("GEMINI_API_KEY")
 
-#: Request-scoped API key supplied from the frontend. Kept in a context var so
-#: it never lands in the persisted graph state (checkpoints.db).
 _request_api_key: ContextVar[str | None] = ContextVar("request_api_key", default=None)
 
-#: Request-scoped conversation id used to scope document/code tools to the
-#: conversation's workspace and documents. Mirrors ``_request_api_key`` so it
-#: never lands in the persisted graph state either.
 _request_conversation_id: ContextVar[str | None] = ContextVar(
     "request_conversation_id", default=None
 )
@@ -48,16 +43,6 @@ def thinking_call_kwargs(
     model: str | None,
     model_provider: str | None,
 ) -> dict:
-    """Return Gemini thinking generation kwargs for a single LLM call.
-
-    Thinking mode raises Gemini 3's native ``thinking_level`` to ``high`` and
-    requests the thoughts be returned (``include_thoughts=True``) so they can
-    be streamed into the frontend thinking panel. Fast mode drops to
-    ``minimal`` for the lowest-latency configuration.
-
-    Returns ``{}`` for any other provider or non-Gemini-3 model, so models
-    that don't expose Gemini-style thinking are invoked exactly as before.
-    """
     if model_provider != "google_genai":
         return {}
     if not (model or "").lower().startswith("gemini-3"):
@@ -87,11 +72,6 @@ def _cached_llms(
 
 
 def _default_llm_config() -> tuple[str, str]:
-    """Resolve default model/provider from the settings store, else env.
-
-    The settings store is the single source of truth for persistent defaults
-    set from the Settings page; ``.env`` only seeds it on first run.
-    """
     stored = get_settings_store().get_llm()
     model = stored.get("model") or DEFAULT_MODEL
     provider = stored.get("model_provider") or DEFAULT_PROVIDER
@@ -99,7 +79,6 @@ def _default_llm_config() -> tuple[str, str]:
 
 
 def _resolve_default_api_key(provider: str) -> str | None:
-    """Look up the API key for ``provider`` from settings, then env."""
     store = get_settings_store()
     key = store.get_api_key(provider)
     if key:
@@ -115,13 +94,6 @@ def get_llms(
     model_provider: str | None = None,
     api_key: str | None = None,
 ):
-    """Return ``(generation_llm, classifier_llm)`` for the given configuration.
-
-    Omitted values fall back to the persisted settings (seeded from ``.env``).
-    Instances are cached per configuration so repeated calls reuse the same LLM
-    objects instead of rebuilding them. No global state is mutated, so
-    concurrent requests can each use their own model.
-    """
     if model is None or model_provider is None:
         default_model, default_provider = _default_llm_config()
         model = model or default_model
@@ -140,13 +112,6 @@ def build_structured_llm(
     api_key: str | None = None,
     **kwargs,
 ):
-    """Return an LLM with ``schema`` as its structured output.
-
-    Resolves model/provider/api_key exactly like ``get_llms`` (persisted
-    settings first, then env defaults), so judge calls reuse the same providers
-    and keys as the application. ``kwargs`` are forwarded to
-    ``init_chat_model`` (e.g. ``temperature=0``).
-    """
     if model is None or model_provider is None:
         default_model, default_provider = _default_llm_config()
         model = model or default_model
@@ -163,12 +128,6 @@ def build_structured_llm(
 
 
 def extract_llm_text(response) -> str:
-    """Extract the text payload from an ``AIMessage``/``AIMessageChunk``.
-
-    Different providers return ``content`` as a plain string (OpenAI,
-    Anthropic) or as a list of content blocks (Google), and blocks may be
-    strings or dicts. This handles all of those shapes.
-    """
     content = getattr(response, "content", None)
 
     if isinstance(content, str):
@@ -190,12 +149,6 @@ def extract_llm_text(response) -> str:
 
 
 def extract_usage_tokens(response) -> dict | None:
-    """Return ``{input_tokens, output_tokens, total_tokens}`` if available.
-
-    Gemini exposes ``input_tokens``/``output_tokens`` while OpenAI-style
-    providers expose ``prompt_tokens``/``completion_tokens``. Returns ``None``
-    when the provider did not attach usage metadata.
-    """
     usage = getattr(response, "usage_metadata", None) or {}
     if not isinstance(usage, dict):
         return None

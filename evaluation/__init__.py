@@ -1,5 +1,3 @@
-"""RAG evaluation package: retrieval metrics + LLM-as-judge scoring."""
-
 from evaluation.dataset import EvalItem, load_dataset
 from evaluation.retrieval_metrics import (
     average_metrics,

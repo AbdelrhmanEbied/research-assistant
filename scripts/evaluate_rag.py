@@ -1,20 +1,4 @@
 #!/usr/bin/env python
-"""Evaluate the RAG pipeline against a JSONL dataset.
-
-Retrieval-only (no LLM calls, no API keys):
-
-    uv run python scripts/evaluate_rag.py --dataset evaluation/sample_data/example.jsonl
-
-Retrieval against a fresh corpus (indexed into a temp store):
-
-    uv run python scripts/evaluate_rag.py --dataset data.jsonl --corpus ./docs
-
-Retrieval + LLM-as-judge (needs API keys configured):
-
-    uv run python scripts/evaluate_rag.py --dataset data.jsonl --corpus ./docs --judge
-
-Run ``--help`` for all options.
-"""
 
 from __future__ import annotations
 

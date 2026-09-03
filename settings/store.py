@@ -16,9 +16,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SETTINGS_PATH = data_path("settings.json")
 
-#: Provider -> label, env var that seeds the key, and a curated list of
-#: model identifiers. The list is a convenience for the Settings UI; users can
-#: always type an arbitrary model name.
 PROVIDERS: dict[str, dict[str, Any]] = {
     "google_genai": {
         "label": "Google Gemini",
@@ -57,19 +54,10 @@ RETRIEVAL_KEYS = ("search_type", "limit", "rerank", "rerank_top_k", "search_dept
 
 
 class SettingsStore:
-    """Local, single-user source of truth for runtime configuration.
-
-    Settings that used to require editing ``.env`` or ``agent/llms.py`` are
-    persisted to a JSON file next to the app. Env vars remain the bootstrap
-    defaults so an untouched install behaves exactly as before.
-    """
-
     def __init__(self, path: str | Path | None = None) -> None:
         self.path = Path(path) if path is not None else DEFAULT_SETTINGS_PATH
         self._data: dict[str, Any] = {}
         self._load()
-
-    # --- persistence -------------------------------------------------------
 
     def _load(self) -> None:
         if not self.path.exists():
@@ -101,17 +89,13 @@ class SettingsStore:
         self._data[key] = value
         self._save()
 
-    # --- LLM defaults (single source of truth) ------------------------------
-
     def get_llm(self) -> dict[str, str | None]:
-        """Raw stored values; ``None`` means "not configured by the user"."""
         return {
             "model": self._data.get("llm_model"),
             "model_provider": self._data.get("llm_provider"),
         }
 
     def effective_llm(self) -> dict[str, str]:
-        """Stored values falling back to the env-seeded defaults."""
         return {
             "model": self._data.get("llm_model") or DEFAULT_MODEL,
             "model_provider": self._data.get("llm_provider") or DEFAULT_PROVIDER,
@@ -126,11 +110,9 @@ class SettingsStore:
         return os.getenv(info.get("env_key", "")) or ""
 
     def has_api_key(self, provider: str) -> bool:
-        """True when a key is configured (stored or seeded from env)."""
         return bool(self.get_api_key(provider) or self._env_key_for(provider))
 
     def get_api_key(self, provider: str | None = None) -> str | None:
-        """Return the user-configured key for ``provider`` (settings.json only)."""
         provider = provider or self.effective_llm()["model_provider"]
         stored = (self._data.get("api_keys") or {}).get(provider)
         return str(stored) if stored else None
@@ -143,8 +125,6 @@ class SettingsStore:
         else:
             keys.pop(provider, None)
         self.set("api_keys", keys)
-
-    # --- retrieval defaults -------------------------------------------------
 
     def get_retrieval(self) -> dict[str, Any]:
         stored = self._data.get("retrieval") or {}
@@ -163,10 +143,7 @@ class SettingsStore:
                 current[key] = kwargs[key]
         self.set("retrieval", current)
 
-    # --- secrets safety ------------------------------------------------------
-
     def public_dict(self) -> dict[str, Any]:
-        """Expose settings to the API without ever revealing key material."""
         llm = self.effective_llm()
         return {
             "llm": {
@@ -198,7 +175,6 @@ def get_settings_store(path: str | Path | None = None) -> SettingsStore:
 
 
 def reset_settings_store() -> None:
-    """Drop the process-wide store (used by tests)."""
     global _default_store
     _default_store = None
 

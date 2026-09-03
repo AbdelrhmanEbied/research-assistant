@@ -1,10 +1,3 @@
-"""Local-first tools for the thinking agent loop.
-
-Everything here runs locally: a safe arithmetic evaluator, an isolated
-subprocess for arbitrary Python, and document discovery/reading scoped to the
-current conversation. No new dependencies are required.
-"""
-
 import ast
 import math
 import statistics
@@ -19,8 +12,6 @@ from paths import data_path
 
 EXEC_TIMEOUT_SECONDS = 30
 
-#: ``math``/``statistics`` names available to the calculator. ``__builtins__``
-#: and anything underscore-prefixed are intentionally excluded.
 _SAFE_FUNCTIONS = {name: getattr(math, name) for name in dir(math) if not name.startswith("_")}
 _SAFE_FUNCTIONS.update(
     {name: getattr(statistics, name) for name in dir(statistics) if not name.startswith("_")}
@@ -96,11 +87,6 @@ def _evaluate(node: ast.AST):
 
 
 def evaluate_expression(expression: str):
-    """Evaluate ``expression`` against the safe AST whitelist.
-
-    Rejects imports, attribute access, lambdas, comprehensions and any call
-    outside the whitelisted ``math``/``statistics`` functions.
-    """
     tree = ast.parse(expression, mode="eval")
 
     for node in ast.walk(tree):
@@ -131,12 +117,6 @@ def _conversation_workspace() -> str:
 
 
 def build_agent_tools(rag):
-    """Build the tools exposed to the thinking agent for ``rag``.
-
-    The tools close over the RAG service and read the request-scoped
-    ``conversation_id`` context var at call time, so one shared set can be
-    built at graph construction and reused across conversations.
-    """
 
     @tool
     def calculator(expression: str) -> str:

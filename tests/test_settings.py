@@ -36,10 +36,8 @@ def test_store_api_key_never_leaks_into_public_dict(isolated_store, monkeypatch)
 def test_store_api_key_falls_back_to_env(isolated_store, monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "env-gemini-key")
     store = get_settings_store(isolated_store)
-    # env key is available but not stored in settings.json
     assert store.has_api_key("google_genai") is True
     assert store.get_api_key("google_genai") is None
-    # stored key wins over env
     store.set_api_key("google_genai", "stored-key")
     assert store.get_api_key("google_genai") == "stored-key"
 
@@ -66,7 +64,6 @@ def test_settings_endpoints(tmp_path, monkeypatch):
     from settings.store import SettingsStore
 
     monkeypatch.setenv("GEMINI_API_KEY", "env-key")
-
     store = SettingsStore(tmp_path / "settings.json")
     monkeypatch.setattr("app.backend.routers.settings_router.get_settings_store", lambda: store)
 
@@ -74,7 +71,6 @@ def test_settings_endpoints(tmp_path, monkeypatch):
     app.include_router(router)
 
     with TestClient(app) as client:
-        # keys are never exposed in responses
         res = client.get("/settings/").json()
         assert res["llm"]["default_provider"] == "google_genai"
         assert res["providers"]["google_genai"]["has_api_key"] is True
@@ -90,7 +86,6 @@ def test_settings_endpoints(tmp_path, monkeypatch):
         res = client.put("/settings/api-keys", json={"provider": "openai", "api_key": "sk-x"})
         assert res.status_code == 200
         assert store.get_api_key("openai") == "sk-x"
-        # still never echoed back
         assert "sk-x" not in str(client.get("/settings/").json())
 
         res = client.put(

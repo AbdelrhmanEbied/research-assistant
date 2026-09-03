@@ -81,11 +81,6 @@ class QDrantManager:
         self,
         qdrant_filter: models.Filter | None = None,
     ) -> list[tuple[str, str | None]]:
-        """Distinct ``(document_id, name)`` pairs within ``qdrant_filter`` scope.
-
-        Walks the collection with ``client.scroll`` (no similarity needed) and
-        deduplicates on ``document_id``.
-        """
         document_ids: dict[str, str | None] = {}
         offset = None
 
@@ -115,11 +110,6 @@ class QDrantManager:
         qdrant_filter: models.Filter | None = None,
         limit: int = 100,
     ):
-        """Return a document's points ordered by ``chunk_index``.
-
-        Combines ``qdrant_filter`` (e.g. the conversation scope) with the
-        ``document_id`` condition so only in-scope chunks are returned.
-        """
         document_condition = models.FieldCondition(
             key="document_id",
             match=models.MatchValue(value=document_id),

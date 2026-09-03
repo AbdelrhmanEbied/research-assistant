@@ -14,8 +14,6 @@ from settings import get_settings_store
 from telemetry import get_current_tracker
 from telemetry.tokens import estimate_token_counts
 
-#: Explicit user overrides for the classified mode/source. ``None`` means the
-#: classifier decides as usual (the "auto" behaviour).
 SOURCE_OVERRIDES: dict[str, KnowledgeSource] = {
     "documents": KnowledgeSource.RAG,
     "web": KnowledgeSource.WEB,
@@ -38,16 +36,6 @@ def _request_llms(state: AgentState):
 
 
 def classify_request(state: AgentState):
-    """
-    Analyze the user's query and determine the execution mode and
-    required knowledge source.
-
-    When the user provided an explicit ``mode``/``source`` override (search
-    mode selector, compare, summarize, ...) it wins; otherwise the classifier
-    LLM routes the request to one of the supported prompt modes (chat,
-    summarize, compare, or explain) and decides whether the response should
-    rely on the LLM alone, the RAG pipeline, or live web search.
-    """
     query = state["query"]
     mode_override = state.get("mode_override")
     source_override = state.get("source_override")
@@ -55,7 +43,6 @@ def classify_request(state: AgentState):
     forced_source = SOURCE_OVERRIDES.get(source_override)
     forced_mode = MODE_OVERRIDES.get(mode_override)
 
-    # "chat" is a full override: answer from the LLM alone, no routing needed.
     if source_override == "chat":
         forced_source = KnowledgeSource.NONE
         forced_mode = PromptMode.CHAT
@@ -94,19 +81,6 @@ def classify_request(state: AgentState):
 
 def make_prepare_prompt_node(rag, search_service):
     def prepare_prompt(state: AgentState):
-        """
-        Prepare the prompt and supporting knowledge for response generation.
-
-        Selects the appropriate knowledge pipeline based on the classified
-        knowledge source:
-        - WEB: Retrieve and prepare live web search results.
-        - RAG: Retrieve relevant documents from the vector database.
-        - NONE: Build a prompt without external retrieval.
-
-        Returns a populated `KnowledgeResult` containing the retrieved
-        documents (if any), constructed context, and final prompt, plus a
-        flat, JSON-safe list of sources for the frontend citations.
-        """
 
         tracker = get_current_tracker()
 
@@ -161,8 +135,6 @@ def make_prepare_prompt_node(rag, search_service):
 
 
 def _resolve_retrieval_config(overrides: dict) -> dict:
-    """Merge the user's per-request retrieval overrides onto the persisted
-    defaults so the backend always has a complete, valid set of options."""
     defaults = get_settings_store().get_retrieval()
     search_type = overrides.get("search_type") or defaults["search_type"]
     if search_type not in {st.value for st in SearchType}:
@@ -244,14 +216,12 @@ def _record_token_metrics(tracker, prompt_text: str, text: str, response) -> Non
 
 
 def route_by_agent_mode(state: AgentState) -> str:
-    """Send the request down the fast or thinking path after the prompt."""
     mode = state.get("agent_mode") or "fast"
     return "thinking" if mode == "thinking" else "fast"
 
 
 def make_agent_reason_node(tools):
     def agent_reason(state: AgentState):
-        """One thinking-mode generation step: model may emit tool calls."""
         tracker = get_current_tracker()
 
         cfg = _llm_config(state)
@@ -298,7 +268,6 @@ def make_agent_reason_node(tools):
 
 def make_execute_tools_node(tools):
     def execute_tools(state: AgentState):
-        """Run the last message's tool calls manually and append ``ToolMessage``s."""
         messages = state.get("messages") or []
         last = messages[-1]
         tool_map = {tool.name: tool for tool in tools}
@@ -326,7 +295,6 @@ def make_execute_tools_node(tools):
 
 
 def finalize_answer(state: AgentState):
-    """Extract the final ``AIMessage`` text from the thinking message list."""
     messages = state.get("messages") or []
     text = ""
     for message in reversed(messages):

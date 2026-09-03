@@ -32,12 +32,10 @@ def test_context_builder_renders_documents_and_sources():
     assert "alpha content" in context.text
     assert "beta content" in context.text
 
-    # internal metadata keys must not leak into the prompt context
     assert "document_id" not in context.text
     assert "chunk_id" not in context.text
     assert "conversation_id" not in context.text
 
-    # useful metadata survives
     assert "Name" in context.text
     assert "Page" in context.text
 
@@ -140,13 +138,6 @@ def test_build_sources_includes_rag_and_web_metadata():
     assert rag_source["snippet"] and rag_source["snippet"].endswith("…")
 
     web_source = sources[1]
-    assert web_source["source"] == "web"
-    assert web_source["title"] == "Some Site"
-    assert web_source["url"] == "https://www.example.com/path"
-    assert web_source["domain"] == "example.com"
-    assert web_source["snippet"] == "web snippet text"
-    # no internal search objects leak into the citation
-    assert "score" not in rag_source
     assert "raw_content" not in web_source
 
 

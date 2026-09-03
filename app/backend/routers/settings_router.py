@@ -28,7 +28,6 @@ class RetrievalSettingsUpdate(BaseModel):
 
 @router.get("/")
 def get_settings():
-    """Return non-secret settings. API key presence is a boolean only."""
     return get_settings_store().public_dict()
 
 
@@ -40,7 +39,6 @@ def update_llm(body: LLMSettingsUpdate):
 
 @router.put("/api-keys")
 def update_api_key(body: ApiKeyUpdate):
-    """Store an API key for a provider. The value is never returned or logged."""
     if body.api_key and not body.api_key.strip():
         raise HTTPException(status_code=400, detail="API key cannot be blank.")
     get_settings_store().set_api_key(body.provider.strip(), body.api_key)

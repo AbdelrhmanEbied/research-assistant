@@ -20,8 +20,6 @@ def point(document_id, text, score, chunk_index=0):
 
 
 class FakeVectorstore:
-    """Replays in-memory points and records every search/list call."""
-
     def __init__(self, points_by_document, all_points):
         self.points_by_document = points_by_document
         self.all_points = all_points
@@ -73,12 +71,10 @@ def test_grouped_retrieval_queries_each_document_independently():
         group_by_document=True,
     )
 
-    # ceil(2 / 2) = 1 per document, merge-sorted by score
     assert len(docs) == 2
     assert [d.text for d in docs] == ["a-top", "b-top"]
     assert {d.metadata["document_id"] for d in docs} == {"a", "b"}
 
-    # one query per document, each combining conversation + document scoping
     assert len(store.search_calls) == 2
     for _, _, _, qdrant_filter in store.search_calls:
         keys = {condition.key for condition in qdrant_filter.must}
@@ -109,7 +105,6 @@ def test_grouped_retrieval_merges_more_than_two_documents():
     retriever = make_retriever(store)
     docs = retriever.retrieve(query="q", limit=3, group_by_document=True)
 
-    # ceil(3 / 3) = 1 per doc, so each document contributes
     assert len(docs) == 3
     assert {d.metadata["document_id"] for d in docs} == {"a", "b", "c"}
 
@@ -121,7 +116,6 @@ def test_grouped_retrieval_single_document_uses_normal_path():
     retriever = make_retriever(store)
     docs = retriever.retrieve(query="q", limit=3, group_by_document=True)
 
-    # a single in-scope document falls back to one unconstrained query
     assert len(store.search_calls) == 1
     _, _, limit, qdrant_filter = store.search_calls[0]
     assert limit == 3
@@ -156,7 +150,6 @@ def test_rerank_diversified_guarantees_one_chunk_per_document():
 
     assert len(result) == 3
     assert {d.metadata["document_id"] for d in result} == {"a", "b", "c"}
-    # the top chunk of each document is chosen first
     assert [d.text for d in result] == ["a-top", "b-top", "c-top"]
 
 

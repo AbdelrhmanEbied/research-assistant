@@ -41,9 +41,6 @@ def make_tools(qdrant=None):
     return tools, qdrant
 
 
-# --- calculator ------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "expression,expected",
     [
@@ -83,9 +80,6 @@ def test_calculator_rejects_unsafe_constructs(expression):
     assert "error" in result.lower()
 
 
-# --- code executor ---------------------------------------------------------
-
-
 def test_code_executor_returns_stdout():
     tools, _ = make_tools()
     result = tools["python_code_executor"].invoke({"code": "print(2 + 2)"})
@@ -103,9 +97,6 @@ def test_code_executor_times_out(monkeypatch):
     tools, _ = make_tools()
     result = tools["python_code_executor"].invoke({"code": "import time; time.sleep(5)"})
     assert "timed out" in result
-
-
-# --- document tools --------------------------------------------------------
 
 
 def test_read_document_returns_full_text_in_chunk_order():

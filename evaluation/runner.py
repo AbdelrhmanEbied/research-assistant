@@ -14,13 +14,6 @@ from rag.rag_service import RAGService, create_rag_service
 
 
 class _IdentityReranker:
-    """No-op reranker: keeps retrieval order, used when reranking is disabled.
-
-    ``prepare`` already skips reranking when ``rerank=False``, but
-    ``create_rag_service`` requires a reranker instance, so an identity object
-    is passed instead of loading the cross-encoder model.
-    """
-
     def rerank(self, query, documents, top_k=5):
         return list(documents)[:top_k]
 
@@ -40,7 +33,6 @@ def build_service(db_path: str, rerank: bool) -> RAGService:
 
 
 def index_corpus(service: RAGService, corpus_dir: str | Path) -> None:
-    """Index every supported file in ``corpus_dir`` with a per-file document_id."""
     root = Path(corpus_dir)
     if not root.is_dir():
         raise FileNotFoundError(f"Corpus directory not found: {root}")
@@ -84,7 +76,6 @@ class RAGEvaluator:
         search_types: list[str],
         rerank: bool,
     ) -> list[RetrievalResult]:
-        """Run retrieval for every item x search type and score against ground truth."""
         results: list[RetrievalResult] = []
         for item in items:
             for search_type in search_types:
@@ -122,7 +113,6 @@ class RAGEvaluator:
         model_provider: str | None = None,
         api_key: str | None = None,
     ) -> list[QualityResult]:
-        """Generate an answer and run LLM-as-judge metrics for every item."""
         if self.generation_llm is None:
             generation_llm = get_llms(model=model, model_provider=model_provider, api_key=api_key)[
                 0

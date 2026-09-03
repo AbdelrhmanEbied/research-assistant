@@ -49,8 +49,6 @@ class StoredEvent(StorageBase):
 
 
 class TelemetryStore:
-    """Local SQLite-backed store for completed telemetry events."""
-
     def __init__(
         self,
         db_path: str = DEFAULT_DB_PATH,
@@ -227,7 +225,6 @@ _default_store: TelemetryStore | None = None
 
 
 def get_default_store(db_path: str | None = None) -> TelemetryStore:
-    """Return the process-wide store, creating it from env config on first use."""
     global _default_store
     if db_path is None:
         db_path = TelemetryConfig.from_env().db_path

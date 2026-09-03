@@ -59,12 +59,6 @@ class Retriever:
         search_type: SearchType,
         qdrant_filter: models.Filter | None,
     ) -> list[RetrievedDocuments]:
-        """Retrieve per-document so no single document dominates the results.
-
-        Each in-scope document is queried independently and the results are
-        merge-sorted by score, truncated to ``limit``. This keeps compare
-        requests fair across documents while preserving conversation scoping.
-        """
         document_ids = [doc_id for doc_id, _ in self.vectorstore.list_document_ids(qdrant_filter)]
 
         if len(document_ids) <= 1:
