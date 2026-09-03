@@ -8,7 +8,7 @@ from fastapi import (
     UploadFile,
 )
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.backend.database.database import get_db
 from app.backend.database.repositories import DocumentRepository
@@ -21,9 +21,9 @@ router = APIRouter(
 )
 
 
-def get_document_service(
+async def get_document_service(
     request: Request,
-    db: Session = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
 ):
     return DocumentService(
         rag=request.app.state.rag,
@@ -34,8 +34,8 @@ def get_document_service(
 @router.post("/upload")
 async def upload_document(
     conversation_id: int = Form(...),
-    file: UploadFile = File(...),  # noqa: B008
-    service: DocumentService = Depends(get_document_service),  # noqa: B008
+    file: UploadFile = File(...),
+    service: DocumentService = Depends(get_document_service),
 ):
     try:
         return await service.upload_document(
@@ -47,12 +47,12 @@ async def upload_document(
 
 
 @router.get("/{conversation_id}/documents", response_model=list[DocumentResponse])
-def list_conversation_documents(
+async def list_conversation_documents(
     conversation_id: int,
-    db: Session = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
 ):
     repo = DocumentRepository(db)
-    return repo.list_by_conversation(conversation_id)
+    return await repo.list_by_conversation(conversation_id)
 
 
 class LinkDocumentsRequest(BaseModel):
@@ -61,13 +61,13 @@ class LinkDocumentsRequest(BaseModel):
 
 
 @router.post("/link")
-def link_documents(
+async def link_documents(
     body: LinkDocumentsRequest,
-    db: Session = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
 ):
-    """Attach existing documents to a conversation so retrieval can scope to them."""
     repo = DocumentRepository(db)
-    existing_ids = {doc.id for doc in repo.list_all()}
+    all_docs = await repo.list_all()
+    existing_ids = {doc.id for doc in all_docs}
     requested = set(body.document_ids)
 
     missing = requested - existing_ids
@@ -77,24 +77,24 @@ def link_documents(
             detail=f"Documents not found: {sorted(missing)}",
         )
 
-    linked = repo.ensure_linked(body.conversation_id, list(requested))
+    linked = await repo.ensure_linked(body.conversation_id, list(requested))
     return {"linked": linked}
 
 
 @router.get("/", response_model=list[DocumentDetailResponse])
-def list_all_documents(
-    service: DocumentService = Depends(get_document_service),  # noqa: B008
+async def list_all_documents(
+    service: DocumentService = Depends(get_document_service),
 ):
-    return service.list_all_documents()
+    return await service.list_all_documents()
 
 
 @router.delete("/{document_id}")
-def delete_document(
+async def delete_document(
     document_id: int,
-    service: DocumentService = Depends(get_document_service),  # noqa: B008
+    service: DocumentService = Depends(get_document_service),
 ):
     try:
-        service.delete_document(document_id)
+        await service.delete_document(document_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Document not found") from None
 

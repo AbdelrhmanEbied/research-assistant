@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.backend.database.database import get_db
 from app.backend.database.repositories import ConversationRepository, MessageRepository
@@ -22,9 +22,13 @@ def get_checkpointer(request: Request):
     return request.app.state.checkpointer
 
 
-def get_chat_service(request: Request) -> ChatService:  # noqa: B008
+async def get_chat_service(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> ChatService:
     return ChatService(
         graph=request.app.state.graph,
+        db=db,
         rag=request.app.state.rag,
     )
 
@@ -32,7 +36,7 @@ def get_chat_service(request: Request) -> ChatService:  # noqa: B008
 @router.post("/")
 async def stream_chat(
     request: ChatRequest,
-    service: ChatService = Depends(get_chat_service),  # noqa: B008
+    service: ChatService = Depends(get_chat_service),
 ):
     return StreamingResponse(
         service.stream(request),
@@ -43,7 +47,7 @@ async def stream_chat(
 @router.post("/regenerate")
 async def regenerate_response(
     request: RegenerateRequest,
-    service: ChatService = Depends(get_chat_service),  # noqa: B008
+    service: ChatService = Depends(get_chat_service),
 ):
     return StreamingResponse(
         service.regenerate(request),
@@ -52,12 +56,12 @@ async def regenerate_response(
 
 
 @router.post("/conversations", response_model=ConversationResponse)
-def create_conversation(
-    db: Session = Depends(get_db),  # noqa: B008
+async def create_conversation(
+    db: AsyncSession = Depends(get_db),
 ):
     repo = ConversationRepository(db)
 
-    conversation = repo.create()
+    conversation = await repo.create()
 
     return ConversationResponse(
         id=conversation.id,
@@ -70,13 +74,13 @@ class RenameRequest(BaseModel):
 
 
 @router.patch("/{conversation_id}")
-def rename_conversation(
+async def rename_conversation(
     conversation_id: int,
     body: RenameRequest,
-    db: Session = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
 ):
     repo = ConversationRepository(db)
-    conversation = repo.update_title(conversation_id, body.title.strip())
+    conversation = await repo.update_title(conversation_id, body.title.strip())
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found.")
     return ConversationResponse(id=conversation.id, title=conversation.title)
@@ -85,12 +89,12 @@ def rename_conversation(
 @router.delete("/{conversation_id}")
 async def delete_conversation(
     conversation_id: int,
-    db: Session = Depends(get_db),  # noqa: B008
-    checkpointer=Depends(get_checkpointer),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
+    checkpointer=Depends(get_checkpointer),
 ):
     repo = ConversationRepository(db)
 
-    conversation = repo.get_by_id(conversation_id)
+    conversation = await repo.get_by_id(conversation_id)
 
     if conversation is None:
         raise HTTPException(
@@ -100,27 +104,27 @@ async def delete_conversation(
 
     await checkpointer.adelete_thread(str(conversation_id))
 
-    repo.delete(conversation_id)
+    await repo.delete(conversation_id)
 
     return {"message": "Conversation deleted successfully."}
 
 
 @router.get("/list", response_model=list[ConversationResponse])
-def list_conversations(
+async def list_conversations(
     q: str | None = Query(default=None, max_length=200),
-    db: Session = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
 ):
     repo = ConversationRepository(db)
     if q and q.strip():
-        return repo.search(q.strip())
-    return repo.list_all()
+        return await repo.search(q.strip())
+    return await repo.list_all()
 
 
 @router.get("/{conversation_id}/export")
 async def export_conversation(
     conversation_id: int,
     format: str = Query(default="markdown", pattern="^(markdown|json)$"),
-    service: ChatService = Depends(get_chat_service),  # noqa: B008
+    service: ChatService = Depends(get_chat_service),
 ):
     try:
         content = await service.export_conversation(conversation_id, format)
@@ -145,20 +149,20 @@ async def export_conversation(
     "/{conversation_id}/messages",
     response_model=MessagesPage,
 )
-def list_messages(
+async def list_messages(
     conversation_id: int,
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
 ):
     repo = MessageRepository(db)
 
-    messages = repo.list_by_conversation(
+    messages = await repo.list_by_conversation(
         conversation_id,
         limit=limit,
         offset=offset,
     )
-    total = repo.count_by_conversation(conversation_id)
+    total = await repo.count_by_conversation(conversation_id)
 
     return MessagesPage(
         messages=messages,

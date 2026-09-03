@@ -5,6 +5,7 @@ import re
 from collections.abc import AsyncGenerator
 
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import ClientDisconnect
 
 from agent.llms import (
@@ -14,7 +15,6 @@ from agent.llms import (
     set_request_api_key,
     set_request_conversation_id,
 )
-from app.backend.database.database import SessionLocal
 from app.backend.database.repositories import (
     ConversationRepository,
     DocumentRepository,
@@ -26,29 +26,13 @@ from telemetry import clear_request_tracking, start_request_tracking
 
 logger = logging.getLogger(__name__)
 
-#: Terminator appended to the streamed response, followed by the JSON sources.
-#: The frontend splits on these markers so citations/details never leak into
-#: the markdown body.
 SOURCES_MARKER = "@@RESEARCH_SOURCES@@"
 DETAILS_MARKER = "@@RESEARCH_DETAILS@@"
-#: Sent at the end of the stream when generation failed so the frontend can
-#: surface the real error instead of a generic "generation stopped" message.
 ERROR_MARKER = "@@RESEARCH_ERROR@@"
-#: Delimiter for thinking-mode segments. Each thinking segment is emitted as
-#: ``{text}\n@@RESEARCH_THINKING@@\n`` and the final answer follows plainly, so
-#: the frontend can statelessly treat everything before the last marker as
-#: thinking and everything after it as the answer.
 THINKING_MARKER = "@@RESEARCH_THINKING@@"
 
 
 def _split_content_parts(content) -> tuple[list[str], list[str]]:
-    """Return ``(text_parts, thinking_parts)`` from an ``AIMessageChunk``.
-
-    Gemini 3 exposes its reasoning thoughts as content blocks of the form
-    ``{"type": "thinking", "thinking": ...}`` (only when the model was called
-    with ``include_thoughts=True``); the actual answer is carried in
-    ``{"type": "text", "text": ...}`` blocks or plain strings (OpenAI/Anthropic).
-    """
     text_parts: list[str] = []
     thinking_parts: list[str] = []
 
@@ -77,12 +61,10 @@ def _split_content_parts(content) -> tuple[list[str], list[str]]:
 
 
 def _chunk_text_parts(content) -> list[str]:
-    """Plain-text pieces of an ``AIMessageChunk`` content field (thinking excluded)."""
     text, _ = _split_content_parts(content)
     return text
 
 
-#: Human-readable status shown in the thinking panel while a tool runs.
 _TOOL_ACTIVITY = {
     "calculator": "Calling calculator...",
     "python_code_executor": "Running Python...",
@@ -95,7 +77,6 @@ def _tool_status_line(tool_name: str) -> str:
     return _TOOL_ACTIVITY.get(tool_name) or f"Calling {tool_name}..."
 
 
-#: Provider label used in response details.
 PROVIDER_LABELS = {
     "google_genai": "Google Gemini",
     "openai": "OpenAI",
@@ -104,8 +85,9 @@ PROVIDER_LABELS = {
 
 
 class ChatService:
-    def __init__(self, graph, rag=None):
+    def __init__(self, graph, db: AsyncSession, rag=None):
         self.graph = graph
+        self.db = db
         self.rag = rag
 
     def _embedding_model_name(self) -> str | None:
@@ -150,13 +132,6 @@ class ChatService:
 
     @staticmethod
     def _is_placeholder_title(title: str) -> bool:
-        """True when the LLM echoed the default 'New chat' placeholder.
-
-        Models sometimes answer short greetings with literally "New Chat"
-        instead of a real title, which would leave the sidebar looking
-        unchanged after the auto-titling ran. Treat those as a failed
-        generation so the query-derived fallback is used instead.
-        """
         normalized = re.sub(r"[\W_]+", " ", title).strip().lower()
         return normalized in {
             "new chat",
@@ -171,7 +146,6 @@ class ChatService:
         llm_config: dict | None = None,
         max_length: int = 50,
     ) -> str:
-        """Ask the LLM for a short title, falling back to query truncation."""
         try:
             cfg = llm_config or {}
             llm = get_llms(
@@ -203,92 +177,36 @@ class ChatService:
 
         return self._fallback_title(query, max_length)
 
-    # --- database helpers (fresh session per op, off the event loop) ---
-
-    @staticmethod
-    async def _run_db(fn):
-        return await run_in_threadpool(fn)
-
     async def _get_conversation(self, conversation_id: int) -> dict | None:
-        def _do():
-            db = SessionLocal()
-            try:
-                conv = ConversationRepository(db).get_by_id(conversation_id)
-                return {"id": conv.id, "title": conv.title} if conv else None
-            finally:
-                db.close()
-
-        return await self._run_db(_do)
+        conv = await ConversationRepository(self.db).get_by_id(conversation_id)
+        return {"id": conv.id, "title": conv.title} if conv else None
 
     async def _get_message_history(self, conversation_id: int) -> list[dict]:
         messages = await self._get_messages(conversation_id)
         return [{"role": m["role"], "content": m["content"]} for m in messages]
 
     async def _get_messages(self, conversation_id: int) -> list[dict]:
-        def _do():
-            db = SessionLocal()
-            try:
-                messages = MessageRepository(db).list_for_history(conversation_id)
-                return [{"id": m.id, "role": m.role, "content": m.content} for m in messages]
-            finally:
-                db.close()
-
-        return await self._run_db(_do)
+        messages = await MessageRepository(self.db).list_for_history(conversation_id)
+        return [{"id": m.id, "role": m.role, "content": m.content} for m in messages]
 
     async def _persist_message(self, conversation_id: int, role: str, content: str) -> int:
-        def _do():
-            db = SessionLocal()
-            try:
-                message = MessageRepository(db).add_message(conversation_id, role, content)
-                return message.id
-            finally:
-                db.close()
-
-        return await self._run_db(_do)
+        message = await MessageRepository(self.db).add_message(conversation_id, role, content)
+        return message.id
 
     async def _update_message_metadata(self, message_id: int, metadata: dict | None):
-        def _do():
-            db = SessionLocal()
-            try:
-                return MessageRepository(db).update_metadata(message_id, metadata)
-            finally:
-                db.close()
-
-        return await self._run_db(_do)
+        return await MessageRepository(self.db).update_metadata(message_id, metadata)
 
     async def _delete_messages_after(self, conversation_id: int, after_id: int) -> int:
-        def _do():
-            db = SessionLocal()
-            try:
-                return MessageRepository(db).delete_after_id(conversation_id, after_id)
-            finally:
-                db.close()
-
-        return await self._run_db(_do)
+        return await MessageRepository(self.db).delete_after_id(conversation_id, after_id)
 
     async def _set_title(self, conversation_id: int, title: str):
-        def _do():
-            db = SessionLocal()
-            try:
-                return ConversationRepository(db).update_title(conversation_id, title)
-            finally:
-                db.close()
-
-        return await self._run_db(_do)
+        return await ConversationRepository(self.db).update_title(conversation_id, title)
 
     async def _attach_document_names(self, sources: list[dict]) -> list[dict]:
         doc_ids = {s.get("document_id") for s in sources if s.get("document_id")}
         names: dict[str, str] = {}
         if doc_ids:
-
-            def _do():
-                db = SessionLocal()
-                try:
-                    return {str(doc.id): doc.name for doc in DocumentRepository(db).list_all()}
-                finally:
-                    db.close()
-
-            all_docs = await self._run_db(_do)
+            all_docs = {str(doc.id): doc.name for doc in await DocumentRepository(self.db).list_all()}
             names = {key: value for key, value in all_docs.items() if key in doc_ids}
 
         enriched = []
@@ -302,15 +220,12 @@ class ChatService:
 
     @staticmethod
     def _sanitize_llm_config(request_llm_config) -> dict | None:
-        """Strip the API key out of the graph state; it stays in a context var."""
         if request_llm_config is None:
             return None
         return {
             "model": request_llm_config.model,
             "model_provider": request_llm_config.model_provider,
         }
-
-    # --- request entry points -------------------------------------------------
 
     async def stream(self, request: ChatRequest) -> AsyncGenerator[str]:
         async for chunk in self._generate(
@@ -329,12 +244,6 @@ class ChatService:
             yield chunk
 
     async def regenerate(self, request: RegenerateRequest) -> AsyncGenerator[str]:
-        """Re-run the answer for the conversation's last user message.
-
-        Trailing assistant messages are dropped (so the old answer is not
-        duplicated), the previous turn history is reused, and the user message
-        is not persisted again.
-        """
         conversation = await self._get_conversation(request.conversation_id)
         if conversation is None:
             raise ValueError(f"Conversation {request.conversation_id} not found")
@@ -374,8 +283,6 @@ class ChatService:
             generate_title=False,
         ):
             yield chunk
-
-    # --- shared streaming core ------------------------------------------------
 
     async def _generate(
         self,
@@ -460,15 +367,10 @@ class ChatService:
 
                         if node == "agent_reason" and thinking_mode:
                             text_parts, thinking_parts = _split_content_parts(chunk.content)
-                            # Gemini thought blocks stream progressively; surface
-                            # them live so the panel fills in while generating.
                             for thought in thinking_parts:
                                 if thought:
                                     call_thinking.append(thought)
                                     yield f"{thought}\n{THINKING_MARKER}\n"
-                            # The answer text is held back until the call ends and
-                            # we know it isn't a tool-call turn, so thinking and
-                            # answer can never interleave in the same turn.
                             call_buffer.extend(text_parts)
                             continue
 
@@ -489,7 +391,6 @@ class ChatService:
                         node = event.get("metadata", {}).get("langgraph_node")
                         if node != "agent_reason" or not thinking_mode:
                             continue
-                        # commit this call's thought blocks as one clean segment
                         thought_text = "".join(call_thinking).strip()
                         call_thinking.clear()
                         if thought_text:
@@ -499,8 +400,6 @@ class ChatService:
                         text = "".join(call_buffer).strip()
                         call_buffer.clear()
                         if getattr(output, "tool_calls", None):
-                            # tool-call turn: thoughts/status already streamed
-                            # live; discard any stray reasoning text
                             continue
                         if text:
                             assistant_buffer.append(text)
@@ -534,10 +433,6 @@ class ChatService:
                 tracker.finish(success=False, error_type="Cancelled")
             raise
         except Exception as exc:
-            # Don't let a backend failure kill the stream halfway: the client
-            # would read a truncated body and report a bogus "generation
-            # stopped". Instead, surface the real error as a marker so the
-            # frontend can render it, then finish this stream normally.
             if tracker is not None:
                 tracker.finish(success=False, error_type=type(exc).__name__)
             logger.warning("Chat generation failed for conversation %s: %s", conversation_id, exc)
@@ -576,8 +471,6 @@ class ChatService:
         if details:
             yield f"{DETAILS_MARKER}\n{json.dumps(details)}\n"
 
-    # --- response details ------------------------------------------------------
-
     @staticmethod
     def _build_details(
         tracker,
@@ -588,10 +481,6 @@ class ChatService:
         provider: str | None,
         agent_mode: str | None = None,
     ) -> dict:
-        """Collect already-measured telemetry into a compact details payload.
-
-        Reads from the request tracker in memory; nothing is re-stored.
-        """
         metrics = tracker.metrics() if tracker is not None else {}
         tags = tracker.tags() if tracker is not None else {}
 
@@ -622,8 +511,6 @@ class ChatService:
                 "total_tokens": metrics.get("total_tokens"),
             },
         }
-
-    # --- export ----------------------------------------------------------------
 
     async def export_conversation(self, conversation_id: int, fmt: str) -> str:
         conversation = await self._get_conversation(conversation_id)

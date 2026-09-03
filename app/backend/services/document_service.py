@@ -4,7 +4,7 @@ from uuid import uuid4
 import aiofiles
 from fastapi import UploadFile
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.backend.database.repositories import (
     ConversationRepository,
@@ -21,7 +21,7 @@ UPLOAD_DIR = data_path("data/uploads")
 
 
 class DocumentService:
-    def __init__(self, rag, db: Session):
+    def __init__(self, rag, db: AsyncSession):
         self.rag = rag
         self.db = db
         self.document_repo = DocumentRepository(db)
@@ -57,7 +57,7 @@ class DocumentService:
         )
 
         try:
-            conversation = self.conversation_repo.get_by_id(conversation_id)
+            conversation = await self.conversation_repo.get_by_id(conversation_id)
             if conversation is None:
                 raise ValueError("Conversation not found.")
 
@@ -73,12 +73,12 @@ class DocumentService:
                     content = await file.read()
                     await f.write(content)
 
-                document = self.document_repo.create(
+                document = await self.document_repo.create(
                     name=file.filename,
                     file_path=str(save_path),
                 )
 
-                self.document_repo.link_to_conversation(
+                await self.document_repo.link_to_conversation(
                     conversation_id,
                     document.id,
                 )
@@ -98,7 +98,7 @@ class DocumentService:
                 if save_path.exists():
                     save_path.unlink(missing_ok=True)
                 if document is not None:
-                    self.document_repo.delete(document.id)
+                    await self.document_repo.delete(document.id)
                 raise
 
             tracker.finish(success=True)
@@ -110,8 +110,8 @@ class DocumentService:
         finally:
             clear_request_tracking()
 
-    def list_all_documents(self) -> list[DocumentDetailResponse]:
-        documents = self.document_repo.list_all_with_conversations()
+    async def list_all_documents(self) -> list[DocumentDetailResponse]:
+        documents = await self.document_repo.list_all_with_conversations()
         return [
             DocumentDetailResponse(
                 id=document.id,
@@ -128,8 +128,8 @@ class DocumentService:
             for document in documents
         ]
 
-    def delete_document(self, document_id: int):
-        document = self.document_repo.get_by_id(document_id)
+    async def delete_document(self, document_id: int):
+        document = await self.document_repo.get_by_id(document_id)
         if document is None:
             raise ValueError("Document not found.")
 
@@ -139,4 +139,4 @@ class DocumentService:
 
         self.rag.qdrant_manager.delete_document(document_id=str(document_id))
 
-        self.document_repo.delete(document_id)
+        await self.document_repo.delete(document_id)
