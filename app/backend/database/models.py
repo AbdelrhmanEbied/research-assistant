@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text, JSON
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.backend.database.base import Base
@@ -14,13 +15,13 @@ class Conversation(Base):
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.now,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.now,
-        onupdate=datetime.now,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     messages = relationship(
@@ -55,14 +56,14 @@ class Message(Base):
     )
 
     extra: Mapped[dict | None] = mapped_column(
-        JSON,
+        JSON().with_variant(PG_JSONB(), "postgresql"),
         nullable=True,
         default=None,
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
     )
 
     conversation = relationship(

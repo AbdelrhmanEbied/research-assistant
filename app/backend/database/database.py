@@ -1,36 +1,14 @@
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from paths import data_path
+DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/research_assistant"
 
-DATABASE_URL = f"sqlite:///{data_path('chat.db')}"
+engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-)
+async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-@event.listens_for(engine, "connect")
-def _set_sqlite_pragma(dbapi_connection, _connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.close()
-
-
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-)
-
-
-def get_db() -> Generator:
-
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db() -> AsyncGenerator[AsyncSession]:
+    async with async_session() as session:
+        yield session
